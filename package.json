@@ -1,0 +1,9 @@
+{
+  "name": "sqlparse5300",
+  "version": "0.0.1",
+  "description": "A/n SQL parser",
+  "main": "index.js",
+  "repository": "git@github.com:skgrush/sqlparse5300.git",
+  "author": "Samuel K. Grush, Jared Rainwater",
+  "license": "MIT"
+}
