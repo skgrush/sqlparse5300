@@ -6,11 +6,20 @@
   "repository": "git@github.com:skgrush/sqlparse5300.git",
   "author": "Samuel K. Grush, Jared Rainwater",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@types/react": "^16.0.16",
+    "@types/react-dom": "^16.0.2",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
   "devDependencies": {
-    "typescript": "^2.5.3"
+    "awesome-typescript-loader": "^3.2.3",
+    "source-map-loader": "^0.2.2",
+    "typescript": "^2.5.3",
+    "webpack": "^3.8.1"
   },
   "scripts": {
+    "build": "webpack",
     "tsc": "tsc"
   }
 }
