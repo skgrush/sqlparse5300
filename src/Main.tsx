@@ -3,8 +3,6 @@ import * as React from "react"
 import QueryInput from './components/QueryInput'
 import RelationsInput from './components/RelationsInput'
 
-console.log("Main.tsx execution")
-
 export interface MainState {
   relationsInputText: string
   queryInputText: string
