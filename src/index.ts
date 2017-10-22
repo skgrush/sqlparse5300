@@ -1,9 +1,9 @@
 import * as React from "react"
 import * as ReactDOM from "react-dom"
 
-import Test from './test'
+import Main from './components/Main'
 
 ReactDOM.render(
-  React.createElement(Test),
+  React.createElement(Main),
   document.getElementById("content")
 )
