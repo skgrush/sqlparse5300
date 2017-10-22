@@ -5,5 +5,11 @@ export interface QueryInputProps {
 }
 
 export default class QueryInput extends React.Component<QueryInputProps, any> {
-
+  render() {
+    return (
+      <div id="query-input-wrapper">
+        <textarea id="query-input" />
+      </div>
+    )
+  }
 }

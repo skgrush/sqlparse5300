@@ -5,5 +5,11 @@ export interface RelationsInputProps {
 }
 
 export default class RelationsInput extends React.Component<RelationsInputProps, any> {
-
+  render() {
+    return (
+      <div id="relations-input-wrapper">
+        <textarea id="relations-input" />
+      </div>
+    )
+  }
 }

@@ -1,8 +1,9 @@
 import * as React from "react"
 
-import RelationsInput from './RelationsInput'
+import QueryInput from './components/QueryInput'
+import RelationsInput from './components/RelationsInput'
 
-import QueryInput from './QueryInput'
+console.log("Main.tsx execution")
 
 export interface MainState {
   relationsInputText: string
