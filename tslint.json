@@ -1,0 +1,16 @@
+{
+  "defaultSeverity": "warning",
+  "extends": [
+    "tslint:recommended"
+  ],
+  "rules": {
+    "interface-name": [true, "never-prefix"],
+    "object-literal-sort-keys": false,
+    "curly": false,
+    "member-access": false,
+    "no-console": [false],
+    "trailing-comma": false,
+    "semicolon": [true, "never"],
+    "quotemark": [false]
+  }
+}
