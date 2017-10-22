@@ -16,12 +16,13 @@
     "awesome-typescript-loader": "^3.2.3",
     "pegjs": "^0.10.0",
     "source-map-loader": "^0.2.2",
+    "ts-pegjs": "^0.1.11",
     "tslint": "^5.8.0",
     "typescript": "^2.5.3",
     "webpack": "^3.8.1"
   },
   "scripts": {
-    "build-parser": "pegjs -o src/parser/sql-parser.js src/parser/sql-parser.pegjs",
+    "build-parser": "pegjs --plugin ./node_modules/ts-pegjs/src/tspegjs -o src/parser/sql-parser.ts src/parser/sql-parser.pegjs",
     "build-webpack": "webpack",
     "build": "yarn run build-parser && yarn run build-webpack"
   }

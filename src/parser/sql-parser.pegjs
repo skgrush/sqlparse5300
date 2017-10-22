@@ -20,10 +20,8 @@ select_what
     )
 
 select_expressions
-  = (expr1:select_expression ("," exprN:select_expression) * )
-  {
-    return [expr1].concat(exprN)
-  }
+  = select_expression
+    / expr1:select_expression "," exprN:select_expressions { return expr1.concat(exprN) }
 
 select_expression
   = ( table_name "." "*" )
@@ -37,10 +35,8 @@ select_from
     ( "WHERE"i expression ) ?
 
 relation_expressions
-  = ( expr1:relation_expression ("," exprN:relation_expression) * )
-  {
-    return [expr1].concat(exprN)
-  }
+  = relation_expression
+    / expr1:relation_expression "," exprN:relation_expressions { return expr1.concat(exprN) }
 
 relation_expression
   = table_name ( "AS"i ? name ) ?
