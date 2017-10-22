@@ -14,13 +14,15 @@
   },
   "devDependencies": {
     "awesome-typescript-loader": "^3.2.3",
+    "pegjs": "^0.10.0",
     "source-map-loader": "^0.2.2",
     "tslint": "^5.8.0",
     "typescript": "^2.5.3",
     "webpack": "^3.8.1"
   },
   "scripts": {
-    "build": "webpack",
-    "tsc": "tsc"
+    "build-parser": "pegjs -o src/parser/sql-parser.js src/parser/sql-parser.pegjs",
+    "build-webpack": "webpack",
+    "build": "yarn run build-parser && yarn run build-webpack"
   }
 }
