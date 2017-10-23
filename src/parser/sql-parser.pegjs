@@ -41,11 +41,12 @@
       alias
     }
   }
-  function makeConditional(operation: string, lhs: any, rhs: any = null) {
+  function makeConditional(operation: string, lhs: any, rhs: any = null, not: boolean = false) {
     return {
       operation,
       lhs,
-      rhs
+      rhs,
+      not
     }
   }
 }
@@ -108,9 +109,9 @@ TargetList
 
 TargetItem "TargetItem"
   = tableName:Name "." "*"
-    { return makeColumn(`${tableName}.*`, null) }
-    / term:Term alias:( __ ( "AS"i __ )? ColumnAlias )?
-    { return makeColumn(term, alias && alias[2]) }
+  { return makeColumn(`${tableName}.*`, null) }
+  / term:Term alias:( __ ( "AS"i __ )? ColumnAlias )?
+  { return makeColumn(term, alias && alias[2]) }
 
 Expression
   = AndCondition ( __ "OR"i __ Expression )?
@@ -119,7 +120,7 @@ AndCondition
   = Condition ( __ "AND"i __ AndCondition )?
 
 Condition
-  = "(" _ cond:Conditional _ ")" { return cond }
+  = "(" _ cond:Condition _ ")" { return cond }
   / (
     Operand
     / ConditionComp
@@ -129,13 +130,13 @@ Condition
     / ConditionNull
   )
   / "NOT"i __ expr:Expression
-    { return makeConditional('not', expr) }
+  { return makeConditional('not', expr) }
   / "(" _ expr:Expression _ ")"
-    { return makeConditional('()', expr) }
+  { return makeConditional('()', expr) }
 
 ConditionComp
   = lhs:Operand _ cmp:Compare _ rhs:Operand
-    { return makeConditional(cmp, lhs, rhs) }
+  { return makeConditional(cmp, lhs, rhs) }
 
 ConditionIn
   = lhs_op:Operand __
@@ -144,24 +145,14 @@ ConditionIn
     "(" _
       rhs_ops:Operands
     ")"
-    {
-      const cond = makeConditional('in', lhs_op, rhs_ops)
-      if (not)
-        return makeConditional('not', cond)
-      return cond
-    }
+  { return makeConditional('in', lhs_op, rhs_ops, not) }
 
 ConditionLike
   = lhs_op:Operand __
     not:( "NOT"i __ )?
     "LIKE" __
     rhs_op:Operand
-    {
-      const cond = makeConditional('like', lhs_op, rhs_op)
-      if (not)
-        return makeConditional('not', cond)
-      return cond
-    }
+  { return makeConditional('like', lhs_op, rhs_op, not) }
 
 ConditionBetween
   = lhs_op:Operand __
@@ -181,23 +172,13 @@ ConditionBetween
         ")"
         { return [rhs_op1, rhs_op2] }
     )
-    {
-      const cond = makeConditional('between', lhs_op, rhs)
-      if (not)
-        return makeConditional('not', cond)
-      return cond
-    }
+  { return makeConditional('between', lhs_op, rhs, not)
 
 ConditionNull
   = lhs:Operand __ "IS" __
     not:( "NOT"i __ )?
     NullLiteral
-    {
-      const cond = makeConditional('isnull', lhs)
-      if (not)
-        return makeConditional('not', cond)
-      return cond
-    }
+  { return makeConditional('isnull', lhs, null, not) }
 
 Term
   = Literal
