@@ -74,24 +74,30 @@ FromClause
 RelationList
   = item1:RelationItem _ "," _ items:RelationList
     { return makeJoin(item1, items) }
-    / item1:RelationItem __
-      jtype:JoinType __
-      items:RelationList
-      jcond:(
-        __ "ON"i
-        __ expr:Expression
-        { return expr }
-        / __ "USING"i
-          "(" _ TargetList _ ")"
-          { return ['using', TargetList] }
-      ) ?
-    { return makeJoin(item1, items, jtype, jcond) }
-    / item:RelationItem
-    { return item }
+    / Join
+    / item
 
 RelationItem
-  = table:Name alias:( __ ( "AS"i __ )? Name )?
-    { return makeRelation(table, alias[2] ) }
+  = "(" _ list:RelationList _ ")"
+  { return list }
+  / "(" _ join:Join _ ")"
+  { return join }
+  / item:RelationItem alias:( __ ( "AS"i __ )? Name )?
+  { return makeRelation(item, alias[2]) }
+
+Join
+  = item1:RelationItem __
+    jtype:JoinType __
+    item2:RelationItem
+    jcond:(
+      __ "ON"i
+      __ expr:Expression
+      { return expr }
+      / __ "USING"i
+        "(" _ TargetList _ ")"
+        { return ['using', TargetList] }
+    )?
+  { return makeJoin(item1, item2, jtype, jcond) }
 
 TargetClause
   = spec:$( "DISTINCT"i __ / "ALL"i __ )?
@@ -99,7 +105,7 @@ TargetClause
       "*"
       / TargetList
     )
-    { return { 'type': "targetlist", 'specifier': spec, 'target': target} }
+  { return { 'type': "targetclause", 'specifier': spec, 'targetlist': target} }
 
 TargetList
   = item1:TargetItem _ "," _ items:TargetList
@@ -108,19 +114,20 @@ TargetList
     { return [item] }
 
 TargetItem "TargetItem"
-  = tableName:Name "." "*"
+  = tableName:Name ".*"
   { return makeColumn(`${tableName}.*`, null) }
   / term:Term alias:( __ ( "AS"i __ )? ColumnAlias )?
   { return makeColumn(term, alias && alias[2]) }
 
 Expression
-  = AndCondition ( __ "OR"i __ Expression )?
+  = lhs:AndCondition rhs:( __ "OR"i __ Expression )?
+  { return rhs ? makeConditional('or', lhs, rhs[3]) : lhs }
 
 AndCondition
-  = Condition ( __ "AND"i __ AndCondition )?
+  = lhs:Condition ( __ "AND"i __ rhs:AndCondition )?
+  { return rhs ? makeConditional('and', lhs, rhs[3]) : lhs }
 
 Condition
-  = "(" _ cond:Condition _ ")" { return cond }
   / (
     Operand
     / ConditionComp
@@ -132,7 +139,7 @@ Condition
   / "NOT"i __ expr:Expression
   { return makeConditional('not', expr) }
   / "(" _ expr:Expression _ ")"
-  { return makeConditional('()', expr) }
+  { return expr }
 
 ConditionComp
   = lhs:Operand _ cmp:Compare _ rhs:Operand
@@ -172,7 +179,7 @@ ConditionBetween
         ")"
         { return [rhs_op1, rhs_op2] }
     )
-  { return makeConditional('between', lhs_op, rhs, not)
+  { return makeConditional('between', lhs_op, rhs, not) }
 
 ConditionNull
   = lhs:Operand __ "IS" __
@@ -239,8 +246,9 @@ Name
     / $( "`" [A-Za-z_][A-Za-z0-9_]* "`" )
 
 Operands
-  = Operand
-    ( _ "," _ Operand ) *
+  = lhs:Operand
+    rhs:( _ "," _ Operand )*
+  { return rhs.reduce((result, element) => result.concat(element[3]), [lhs]) }
 
 Operand
   = Summand
@@ -265,17 +273,19 @@ Compare
 
 
 
-JoinType
-  = (
-      ( "CROSS" )? "JOIN"i
-
-    )
-  join: "," "JOIN" "CROSS JOIN"
-  equi: "INNER JOIN" "JOIN ... USING"
-  natural: "NATURAL JOIN"
-  leftouter: "LEFT [OUTER] JOIN"
-  rightouter: "RIGHT [OUTER] JOIN"
-  fullouter: "FULL [OUTER] JOIN"
+JoinType "JoinType"
+  = ( "CROSS"i __ )? "JOIN"i
+  { return "join" }
+  / "INNER"i __ "JOIN"i
+  { return "equi" }
+  / "NATURAL"i __ "JOIN"i
+  { return "natural" }
+  / "LEFT"i __ ( "OUTER" __ )? "JOIN"
+  { return "left" }
+  / "RIGHT"i __ ( "OUTER" __ )? "JOIN"
+  { return "right" }
+  / "FULL"i __ ( "OUTER" __ )? "JOIN"
+  { return "full" }
 
 /***** LITERALS *****/
 
