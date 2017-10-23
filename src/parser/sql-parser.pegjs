@@ -10,30 +10,38 @@
 
 // initializer
 {
-  function column(target: any, alias: string) {
+  function makeColumn(target: any, alias: string) {
     return {
       "type": "column",
       "target": target,
       "alias": alias
     }
   }
-  function join(lhs: any, rhs: any, jointype: string = 'join', condition: any = null) {
+  function makeJoin(lhs: any, rhs: any, joinType: string = 'join', condition: any = null) {
+    /* jointypes:
+        join: "," "JOIN" "CROSS JOIN"
+        equi: "INNER JOIN" "JOIN ... USING"
+        natural: "NATURAL JOIN"
+        leftouter: "LEFT [OUTER] JOIN"
+        rightouter: "RIGHT [OUTER] JOIN"
+        fullouter: "FULL [OUTER] JOIN"
+     */
     return {
       "type": "join",
-      jointype,
+      joinType,
       condition,
       lhs,
       rhs
     }
   }
-  function relation(target: any, alias: string) {
+  function makeRelation(target: any, alias: string) {
     return {
       "type": "relation",
       target,
       alias
     }
   }
-  function conditional(operation: string, lhs: any, rhs: any = null) {
+  function makeConditional(operation: string, lhs: any, rhs: any = null) {
     return {
       operation,
       lhs,
@@ -50,8 +58,8 @@ Select
   = "SELECT"i __ what:TargetClause __
     "FROM"i   __ from:FromClause __
     where:( "WHERE"i __ Expression __ )?
-    // ( "GROUP BY"i groupby:select_groupby ) ?
-    // ( "ORDER BY"i orderby:select_orderby ) ?
+    // ( "GROUP BY"i groupby:select_groupby )?
+    // ( "ORDER BY"i orderby:select_orderby )?
   { return { what, from, 'where': where[2] } }
 
 FromClause
@@ -64,9 +72,8 @@ FromClause
 
 RelationList
   = item1:RelationItem _ "," _ items:RelationList
-    { return join(item1, items) }
+    { return makeJoin(item1, items) }
     / item1:RelationItem __
-      ( "NATURAL"i __ ) ?
       jtype:JoinType __
       items:RelationList
       jcond:(
@@ -77,16 +84,16 @@ RelationList
           "(" _ TargetList _ ")"
           { return ['using', TargetList] }
       ) ?
-      { return join(item1, items, jtype, jcond) }
+    { return makeJoin(item1, items, jtype, jcond) }
     / item:RelationItem
     { return item }
 
 RelationItem
-  = table:Name alias:( __ ( "AS"i __ ) ? Name ) ?
-    { return relation(table, alias[2] ) }
+  = table:Name alias:( __ ( "AS"i __ )? Name )?
+    { return makeRelation(table, alias[2] ) }
 
 TargetClause
-  = spec:$( "DISTINCT"i __ / "ALL"i __ ) ?
+  = spec:$( "DISTINCT"i __ / "ALL"i __ )?
     target:(
       "*"
       / TargetList
@@ -101,18 +108,19 @@ TargetList
 
 TargetItem "TargetItem"
   = tableName:Name "." "*"
-    { return column(`${tableName}.*`, null) }
-    / term:Term alias:( __ ( "AS"i __ ) ? ColumnAlias ) ?
-    { return column(term, alias && alias[2]) }
+    { return makeColumn(`${tableName}.*`, null) }
+    / term:Term alias:( __ ( "AS"i __ )? ColumnAlias )?
+    { return makeColumn(term, alias && alias[2]) }
 
 Expression
-  = AndCondition ( __ "OR"i __ Expression ) ?
+  = AndCondition ( __ "OR"i __ Expression )?
 
 AndCondition
-  = Condition ( __ "AND"i __ AndCondition ) ?
+  = Condition ( __ "AND"i __ AndCondition )?
 
 Condition
-  = (
+  = "(" _ cond:Conditional _ ")" { return cond }
+  / (
     Operand
     / ConditionComp
     / ConditionIn
@@ -121,43 +129,43 @@ Condition
     / ConditionNull
   )
   / "NOT"i __ expr:Expression
-    { return conditional('not', expr) }
+    { return makeConditional('not', expr) }
   / "(" _ expr:Expression _ ")"
-    { return conditional('()', expr) }
+    { return makeConditional('()', expr) }
 
 ConditionComp
   = lhs:Operand _ cmp:Compare _ rhs:Operand
-    { return conditional(cmp, lhs, rhs) }
+    { return makeConditional(cmp, lhs, rhs) }
 
 ConditionIn
   = lhs_op:Operand __
-    not:( "NOT"i __ ) ?
+    not:( "NOT"i __ )?
     "IN" _
     "(" _
       rhs_ops:Operands
     ")"
     {
-      const cond = conditional('in', lhs_op, rhs_ops)
+      const cond = makeConditional('in', lhs_op, rhs_ops)
       if (not)
-        return conditional('not', cond)
+        return makeConditional('not', cond)
       return cond
     }
 
 ConditionLike
   = lhs_op:Operand __
-    not:( "NOT"i __ ) ?
+    not:( "NOT"i __ )?
     "LIKE" __
     rhs_op:Operand
     {
-      const cond = conditional('like', lhs_op, rhs_op)
+      const cond = makeConditional('like', lhs_op, rhs_op)
       if (not)
-        return conditional('not', cond)
+        return makeConditional('not', cond)
       return cond
     }
 
 ConditionBetween
   = lhs_op:Operand __
-    not:( "NOT"i __ ) ?
+    not:( "NOT"i __ )?
     "BETWEEN"i
     rhs:(
       __
@@ -174,20 +182,20 @@ ConditionBetween
         { return [rhs_op1, rhs_op2] }
     )
     {
-      const cond = conditional('between', lhs_op, rhs)
+      const cond = makeConditional('between', lhs_op, rhs)
       if (not)
-        return conditional('not', cond)
+        return makeConditional('not', cond)
       return cond
     }
 
 ConditionNull
   = lhs:Operand __ "IS" __
-    not:( "NOT"i __ ) ?
+    not:( "NOT"i __ )?
     NullLiteral
     {
-      const cond = conditional('isnull', lhs)
+      const cond = makeConditional('isnull', lhs)
       if (not)
-        return conditional('not', cond)
+        return makeConditional('not', cond)
       return cond
     }
 
@@ -198,7 +206,7 @@ Term
     / ( ColumnRef )
 
 ColumnRef
-  = $( ( table:Name "." ) ? column:Name )
+  = $( ( table:Name "." )? column:Name )
 
 TableName
   = Name
@@ -220,7 +228,7 @@ FunctionAvg
 FunctionCount
   = "COUNT"i _
     "(" _
-      ("DISTINCT" __ ) ?
+      ("DISTINCT" __ )?
       ( "*" / Term ) _
     ")"
 
@@ -273,6 +281,20 @@ Compare
     / "<"
     / ">"
     / "!="
+
+
+
+JoinType
+  = (
+      ( "CROSS" )? "JOIN"i
+
+    )
+  join: "," "JOIN" "CROSS JOIN"
+  equi: "INNER JOIN" "JOIN ... USING"
+  natural: "NATURAL JOIN"
+  leftouter: "LEFT [OUTER] JOIN"
+  rightouter: "RIGHT [OUTER] JOIN"
+  fullouter: "FULL [OUTER] JOIN"
 
 /***** LITERALS *****/
 
