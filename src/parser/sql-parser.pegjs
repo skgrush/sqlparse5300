@@ -1,165 +1,271 @@
 /*
-  Primarily based on grammar of the "Phoenix" SQL layer
+  Initially based on grammar of the "Phoenix" SQL layer
     (https://forcedotcom.github.io/phoenix/index.html)
+
+  Revised based on PostgreSql grammar:
+    https://www.postgresql.org/docs/9/static/sql-syntax.html
+    https://www.postgresql.org/docs/9/static/sql-select.html
+    https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y
 */
 
-start
-  = select
+// initializer
+{
+  function column(target: any, alias: string) {
+    return {
+      "type": "column",
+      "target": target,
+      "alias": alias
+    }
+  }
+  function join(lhs: any, rhs: any, jointype: string = 'join', condition: any = null) {
+    return {
+      "type": "join",
+      jointype,
+      condition,
+      lhs,
+      rhs
+    }
+  }
+  function relation(target: any, alias: string) {
+    return {
+      "type": "relation",
+      target,
+      alias
+    }
+  }
+  function conditional(operation: string, lhs: any, rhs: any = null) {
+    return {
+      operation,
+      lhs,
+      rhs
+    }
+  }
+}
 
-select "select"
-  = "SELECT"i fields:select_what
-    "FROM"i   relations:select_from
+start
+  = Select
+
+// https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y#L10921
+Select
+  = "SELECT"i __ what:TargetClause __
+    "FROM"i   __ from:FromClause __
+    where:( "WHERE"i __ Expression __ )?
     // ( "GROUP BY"i groupby:select_groupby ) ?
     // ( "ORDER BY"i orderby:select_orderby ) ?
+  { return { what, from, 'where': where[2] } }
 
-select_what
-  = spec:( "DISTINCT" / "ALL" ) ?
-    what:(
+FromClause
+  = from:RelationList
+    { return {
+        "type": "fromclause",
+        "from": from
+      }
+    }
+
+RelationList
+  = item1:RelationItem _ "," _ items:RelationList
+    { return join(item1, items) }
+    / item1:RelationItem __
+      ( "NATURAL"i __ ) ?
+      jtype:JoinType __
+      items:RelationList
+      jcond:(
+        __ "ON"i
+        __ expr:Expression
+        { return expr }
+        / __ "USING"i
+          "(" _ TargetList _ ")"
+          { return ['using', TargetList] }
+      ) ?
+      { return join(item1, items, jtype, jcond) }
+    / item:RelationItem
+    { return item }
+
+RelationItem
+  = table:Name alias:( __ ( "AS"i __ ) ? Name ) ?
+    { return relation(table, alias[2] ) }
+
+TargetClause
+  = spec:$( "DISTINCT"i __ / "ALL"i __ ) ?
+    target:(
       "*"
-      / select_expressions
+      / TargetList
     )
+    { return { 'type': "targetlist", 'specifier': spec, 'target': target} }
 
-select_expressions
-  = select_expression
-    / expr1:select_expression "," exprN:select_expressions { return expr1.concat(exprN) }
+TargetList
+  = item1:TargetItem _ "," _ items:TargetList
+    { return [item1].concat(items) }
+    / item:TargetItem
+    { return [item] }
 
-select_expression
-  = ( table_name "." "*" )
-    / (
-        term
-        ( "AS"i ? column_alias ) ?
-      )
+TargetItem "TargetItem"
+  = tableName:Name "." "*"
+    { return column(`${tableName}.*`, null) }
+    / term:Term alias:( __ ( "AS"i __ ) ? ColumnAlias ) ?
+    { return column(term, alias && alias[2]) }
 
-select_from
-  = relation_expressions
-    ( "WHERE"i expression ) ?
+Expression
+  = AndCondition ( __ "OR"i __ Expression ) ?
 
-relation_expressions
-  = relation_expression
-    / expr1:relation_expression "," exprN:relation_expressions { return expr1.concat(exprN) }
+AndCondition
+  = Condition ( __ "AND"i __ AndCondition ) ?
 
-relation_expression
-  = table_name ( "AS"i ? name ) ?
-
-expression
-  = and_condition
-    (
-      "OR"i and_condition
-    ) *
-
-and_condition
-  = condition
-    (
-      "AND"i condition
-    ) *
-
-condition
+Condition
   = (
-    operand
-    / condition_comp
-    / condition_in
-    / condition_like
-    / condition_between
-    / condition_null
+    Operand
+    / ConditionComp
+    / ConditionIn
+    / ConditionLike
+    / ConditionBetween
+    / ConditionNull
   )
-  / ( "NOT"i expression )
-  / ( "(" expression ")" )
+  / "NOT"i __ expr:Expression
+    { return conditional('not', expr) }
+  / "(" _ expr:Expression _ ")"
+    { return conditional('()', expr) }
 
-condition_comp
-  = operand compare operand
+ConditionComp
+  = lhs:Operand _ cmp:Compare _ rhs:Operand
+    { return conditional(cmp, lhs, rhs) }
 
-condition_in
-  = operand
-    "NOT"i ?
-    "IN"
-    "("
-      constant_operand ( "," constant_operand ) *
+ConditionIn
+  = lhs_op:Operand __
+    not:( "NOT"i __ ) ?
+    "IN" _
+    "(" _
+      rhs_ops:Operands
+    ")"
+    {
+      const cond = conditional('in', lhs_op, rhs_ops)
+      if (not)
+        return conditional('not', cond)
+      return cond
+    }
+
+ConditionLike
+  = lhs_op:Operand __
+    not:( "NOT"i __ ) ?
+    "LIKE" __
+    rhs_op:Operand
+    {
+      const cond = conditional('like', lhs_op, rhs_op)
+      if (not)
+        return conditional('not', cond)
+      return cond
+    }
+
+ConditionBetween
+  = lhs_op:Operand __
+    not:( "NOT"i __ ) ?
+    "BETWEEN"i
+    rhs:(
+      __
+      rhs_op1:Operand __
+      "AND"i __
+      rhs_op2:Operand
+      { return [rhs_op1, rhs_op2] }
+      / _
+        "(" _
+          rhs_op1:Operand __
+          "AND"i __
+          rhs_op2:Operand
+        ")"
+        { return [rhs_op1, rhs_op2] }
+    )
+    {
+      const cond = conditional('between', lhs_op, rhs)
+      if (not)
+        return conditional('not', cond)
+      return cond
+    }
+
+ConditionNull
+  = lhs:Operand __ "IS" __
+    not:( "NOT"i __ ) ?
+    NullLiteral
+    {
+      const cond = conditional('isnull', lhs)
+      if (not)
+        return conditional('not', cond)
+      return cond
+    }
+
+Term
+  = Literal
+    / Function
+    / ( "(" _ Operand _ ")" )
+    / ( ColumnRef )
+
+ColumnRef
+  = $( ( table:Name "." ) ? column:Name )
+
+TableName
+  = Name
+
+ColumnAlias
+  = Name
+
+Function "function"
+  = FunctionAvg
+    / FunctionCount
+    / FunctionMax
+    / FunctionMin
+    / FunctionSum
+
+FunctionAvg
+  = "AVG"i _
+    "(" _ Term _ ")"
+
+FunctionCount
+  = "COUNT"i _
+    "(" _
+      ("DISTINCT" __ ) ?
+      ( "*" / Term ) _
     ")"
 
-condition_like
-  = operand
-    "NOT"i ?
-    "LIKE"
-    operand
-
-condition_between
-  = operand
-    "NOT"i ?
-    "BETWEEN"i operand "AND"i operand
-
-condition_null
-  = operand "IS"
-    "NOT"i ?
-    null_literal
-
-constant_operand
-  = operand
-
-
-term
-  = literal
-    / function
-    / ( "(" operand ")" )
-    / ( column_ref )
-
-column_ref
-  = ( table_name "." ) ? name
-
-table_name
-  = name
-
-column_alias
-  = name
-
-function "function"
-  = function_avg
-    / function_count
-    / function_max
-    / function_min
-    / function_sum
-
-function_avg
-  = "AVG"i
-    "(" term ")"
-
-function_count
-  = "COUNT"i
-    "("
-      "DISTINCT" ?
-      ( "*" / term )
+FunctionMax
+  = "MAX"i _
+    "(" _
+      Term _
     ")"
 
-function_max
-  = "MAX"i
-    "(" term ")"
+FunctionMin
+  = "MIN"i _
+    "(" _
+      Term _
+    ")"
 
-function_min
-  = "MIN"i
-    "(" term ")"
-
-function_sum
-  = "SUM"i
-    "(" term ")"
+FunctionSum
+  = "SUM"i _
+    "(" _
+      Term _
+    ")"
 
 /***** PRIMITIVES *****/
 
-name
-  = ( [A-Za-z_] [A-Za-z0-9_]* )
-    / string_literal
+Name
+  = $( [A-Za-z_][A-Za-z0-9_]* )
+    / StringLiteral
+    / $( "`" [A-Za-z_][A-Za-z0-9_]* "`" )
 
-operand
-  = summand
-    ( "||" summand ) *
+Operands
+  = Operand
+    ( _ "," _ Operand ) *
 
-summand
-  = factor
-    ( ("+" / "-") factor ) *
+Operand
+  = Summand
+    ( _ "||" _ Summand ) *
 
-factor
-  = term
-    ( ("*" / "/") term ) *
+Summand
+  = Factor
+    ( _ ("+" / "-") _ Factor ) *
 
-compare
+Factor
+  = Term
+    ( _ ("*" / "/") _ Term ) *
+
+Compare
   = "<>"
     / "<="
     / ">="
@@ -170,40 +276,54 @@ compare
 
 /***** LITERALS *****/
 
-literal "literal"
-  = string_literal
-    / numeric_literal
-    / boolean_literal
-    / null_literal
+Literal "Literal"
+  = StringLiteral
+    / NumericLiteral
+    / BooleanLiteral
+    / NullLiteral
 
-string_literal "string"
-  = "\"" [^\"]+ "\""
+StringLiteral "string"
+  = $( "\"" [^\"]+ "\"" )
 
-numeric_literal "number"
-  = integer_literal
-    / decimal_literal
+ExponentialLiteral "exponential"
+  = val:$( NumericLiteral "e" IntegerLiteral )
+  { return parseFloat(val) }
 
-integer_literal "integer"
-  = int:( "-"? [0-9]+ )
-  {
-    return parseInt(int)
-  }
+NumericLiteral "number"
+  = IntegerLiteral
+    / DecimalLiteral
 
-decimal_literal "decimal"
-  = value:( "-"? [0-9]+ "." [0-9]+ )
-  {
-    return parseFloat(value)
-  }
+IntegerLiteral "integer"
+  = int:$( "-"? [0-9]+ )
+  { return parseInt(int) }
 
-null_literal "null"
+DecimalLiteral "decimal"
+  = value:$( "-"? [0-9]+ "." [0-9]+ )
+  { return parseFloat(value) }
+
+NullLiteral "null"
   = "NULL"i
 
-boolean_literal "boolean"
-  = true_prim
-    / false_prim
+BooleanLiteral "boolean"
+  = TruePrim
+    / FalsePrim
 
-true_prim
+TruePrim
   = "TRUE"i
 
-false_prim
+FalsePrim
   = "FALSE"i
+
+_ "OptionalWhitespace"
+  = WS* Comment? WS* {}
+
+__ "RequiredWhitespace"
+  = WS+ Comment? WS* {}
+    / WS* Comment? WS+ {}
+
+WS
+  = [ \t\n]
+
+Comment "Comment"
+  = "/*" ( !"*/" . )* "*/"   {}
+    / "--" ( !"\n" . )* "\n" {}
