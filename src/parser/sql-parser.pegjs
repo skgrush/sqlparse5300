@@ -10,7 +10,7 @@
 
 // initializer
 {
-  function makeColumn(target: any, alias: string) {
+  function makeColumn(target: any, alias: string|null = null) {
     return {
       "type": "column",
       "target": target,
@@ -34,7 +34,7 @@
       rhs
     }
   }
-  function makeRelation(target: any, alias: string) {
+  function makeRelation(target: any, alias: string|null = null) {
     return {
       "type": "relation",
       target,
@@ -52,16 +52,22 @@
 }
 
 start
-  = Select
+  = Statement
+
+Statement
+  = stmt:(
+      Select
+    ) ";"
+    { return stmt }
 
 // https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y#L10921
 Select
   = "SELECT"i __ what:TargetClause __
-    "FROM"i   __ from:FromClause __
-    where:( "WHERE"i __ Expression __ )?
+    "FROM"i   __ from:FromClause
+    where:( __ "WHERE"i __ Condition __ )?
     // ( "GROUP BY"i groupby:select_groupby )?
     // ( "ORDER BY"i orderby:select_orderby )?
-  { return { what, from, 'where': where[2] } }
+  { return { what, from, 'where': where && where[2] } }
 
 FromClause
   = from:RelationList
@@ -75,15 +81,20 @@ RelationList
   = item1:RelationItem _ "," _ items:RelationList
     { return makeJoin(item1, items) }
     / Join
-    / item
+    / RelationItem
 
-RelationItem
+RelationItem "RelationItem"
+  = item:RelationThing __ ( "AS"i __ )? alias:Name
+  { return makeRelation(item, alias) }
+  / RelationThing
+
+RelationThing
   = "(" _ list:RelationList _ ")"
   { return list }
   / "(" _ join:Join _ ")"
   { return join }
-  / item:RelationItem alias:( __ ( "AS"i __ )? Name )?
-  { return makeRelation(item, alias[2]) }
+  / tableName:Name
+  { return makeRelation(tableName) }
 
 Join
   = item1:RelationItem __
@@ -91,11 +102,11 @@ Join
     item2:RelationItem
     jcond:(
       __ "ON"i
-      __ expr:Expression
+      __ expr:Condition
       { return expr }
       / __ "USING"i
-        "(" _ TargetList _ ")"
-        { return ['using', TargetList] }
+        "(" _ list:TargetList _ ")"
+        { return ['using', list] }
     )?
   { return makeJoin(item1, item2, jtype, jcond) }
 
@@ -105,7 +116,7 @@ TargetClause
       "*"
       / TargetList
     )
-  { return { 'type': "targetclause", 'specifier': spec, 'targetlist': target} }
+  { return { 'type': "targetclause", 'specifier': spec || null, 'targetlist': target} }
 
 TargetList
   = item1:TargetItem _ "," _ items:TargetList
@@ -119,16 +130,16 @@ TargetItem "TargetItem"
   / term:Term alias:( __ ( "AS"i __ )? ColumnAlias )?
   { return makeColumn(term, alias && alias[2]) }
 
-Expression
-  = lhs:AndCondition rhs:( __ "OR"i __ Expression )?
+Condition "Condition"
+  = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
   { return rhs ? makeConditional('or', lhs, rhs[3]) : lhs }
 
 AndCondition
-  = lhs:Condition ( __ "AND"i __ rhs:AndCondition )?
+  = lhs:InnerCondition rhs:( __ "AND"i __ AndCondition )?
   { return rhs ? makeConditional('and', lhs, rhs[3]) : lhs }
 
-Condition
-  / (
+InnerCondition
+  = (
     Operand
     / ConditionComp
     / ConditionIn
@@ -136,9 +147,9 @@ Condition
     / ConditionBetween
     / ConditionNull
   )
-  / "NOT"i __ expr:Expression
+  / "NOT"i __ expr:Condition
   { return makeConditional('not', expr) }
-  / "(" _ expr:Expression _ ")"
+  / "(" _ expr:Condition _ ")"
   { return expr }
 
 ConditionComp
