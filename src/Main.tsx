@@ -1,5 +1,7 @@
 import * as React from "react"
 
+import * as JSONPretty from 'react-json-pretty'
+
 import {parse, SyntaxError} from './parser/sql-parser'
 import QueryInput from './components/QueryInput'
 import RelationsInput from './components/RelationsInput'
@@ -11,7 +13,7 @@ export interface MainState {
 
 export default class Main extends React.Component<any, MainState> {
   status: string
-  queryJSON: string
+  queryJSON: any
 
   constructor(props: any) {
     super(props)
@@ -25,7 +27,7 @@ export default class Main extends React.Component<any, MainState> {
     this.parseQuery = this.parseQuery.bind(this)
 
     this.status = ""
-    this.queryJSON = ""
+    this.queryJSON = null
   }
 
   onRelationsInputUpdate(text: string): void {
@@ -40,14 +42,13 @@ export default class Main extends React.Component<any, MainState> {
   parseQuery(query: string): void {
     this.status = "Parsing query"
     try {
-      const output = parse(query, undefined)
+      this.queryJSON = parse(query, undefined)
       this.status = "Query parsed"
-      this.queryJSON = JSON.stringify(output)
-      console.log(output)
+      console.log(this.queryJSON)
     } catch (ex) {
       const err: SyntaxError = ex
       this.status = err.message
-      this.queryJSON = ""
+      this.queryJSON = null
       console.error(err)
     }
   }
@@ -59,9 +60,7 @@ export default class Main extends React.Component<any, MainState> {
         <QueryInput onUpdate={this.onQueryInputUpdate} />
         <div id="parse-status">{this.status}</div>
         <div id="query-output-test">
-          <pre><code>
-            {this.queryJSON}
-          </code></pre>
+          <JSONPretty json={this.queryJSON} />
         </div>
       </main>
     )
