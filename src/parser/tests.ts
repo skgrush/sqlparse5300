@@ -44,14 +44,14 @@ from users u inner join groups g on g.Userid = u.Userid
 group by GroupName
 having count(g.*) > 5`,
 
-`SELECT loan-number, branch-name, amount * 100
+`SELECT \`loan-number\`, \`branch-name\`, amount * 100
 FROM    loan`,
 
 `SELECT DISTINCT loan-number
 FROM loan
 WHERE amount between 90000 and 100000`,
 
-`SELECT P.P#, 'Weight in Grams = ', P.Weight * 454
+`SELECT P.\`P#\`, 'Weight in Grams = ', P.Weight * 454
 FROM P;`,
 
 `SELECT Supplier_name = Sname , STATUS

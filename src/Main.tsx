@@ -3,8 +3,10 @@ import * as React from "react"
 import * as JSONPretty from 'react-json-pretty'
 
 import {parse, SyntaxError} from './parser/sql-parser'
+
 import QueryInput from './components/QueryInput'
 import RelationsInput from './components/RelationsInput'
+import Tests from './components/Tests'
 
 export interface MainState {
   relationsInputText: string
@@ -62,6 +64,7 @@ export default class Main extends React.Component<any, MainState> {
         <div id="query-output-test">
           <JSONPretty json={this.queryJSON} />
         </div>
+        <Tests />
       </main>
     )
   }
