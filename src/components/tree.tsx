@@ -45,7 +45,9 @@ class TreeRow extends React.Component<TreeRowProps, TreeRowState> {
   render() {
     return (
       <div className="tree-row" style={{paddingLeft: this.props.offset}}>
-        {this.props.node.operation.name}
+        {this.props.node.operation.name} ({this.props.node.operation.arguments.map(arg => {
+          return arg + ", "
+        })})
       </div>
     )
   }
