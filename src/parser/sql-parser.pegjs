@@ -70,10 +70,14 @@ Statements
 Statement
   = stmt:(
       Select
+      / SelectUnion
     )
     { return stmt }
 
-// https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y#L10921
+SelectUnion
+  = lhs:Select __ "UNION"i __ all:( "ALL"i __ )? rhs:( Select / SelectUnion )
+  { return [lhs, 'union', all && 'all', rhs] }
+
 Select
   = "SELECT"i __ what:TargetClause __
     "FROM"i   __ from:FromClause
@@ -298,7 +302,7 @@ AggFunctionSum
 
 Name
   = DQStringLiteral
-    / $( "`" [A-Za-z_][A-Za-z0-9_]* "`" )
+    / BTStringLiteral
     / !ReservedWord Ident
 
 Ident
