@@ -61,22 +61,44 @@
 }
 
 start
-  = Statement
+  = Statements
+
+Statements
+  = _ lhs:Statement rhs:( _ ";" _ Statement )* _ ";"?
+  { return rhs.reduce((result, element) => result.concat(element[3]), [lhs]) }
 
 Statement
   = stmt:(
       Select
-    ) ";"
+    )
     { return stmt }
 
 // https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y#L10921
 Select
   = "SELECT"i __ what:TargetClause __
     "FROM"i   __ from:FromClause
-    where:( __ "WHERE"i __ Condition __ )?
-    // ( "GROUP BY"i groupby:select_groupby )?
-    // ( "ORDER BY"i orderby:select_orderby )?
-  { return { what, from, 'where': where && where[2] } }
+    where:(   __ "WHERE"i  __          Condition )?
+    groupBy:( __ "GROUP"i  __ "BY"i __ TargetList )?
+    having:(  __ "HAVING"i __          Condition )?
+    orderBy:( __ "ORDER"i  __ "BY"i __ OrderByClause )?
+  { return {
+      "type": "selectclause",
+      what,
+      from,
+      'where': where && where[2],
+      'groupBy': groupBy && groupBy[5],
+      'having': having && having[3],
+      'orderBy': orderBy && orderBy[5]
+    }
+  }
+
+TargetClause
+  = spec:$( "DISTINCT"i __ / "ALL"i __ )?
+    target:(
+      "*"
+      / TargetList
+    )
+  { return { 'type': "targetclause", 'specifier': spec || null, 'targetlist': target} }
 
 FromClause
   = from:RelationList
@@ -85,6 +107,18 @@ FromClause
         "from": from
       }
     }
+
+OrderByClause
+  = lhs:Ordering rhs:( _ "," _ Ordering )*
+  { return rhs.reduce((result, element) => result.concat(element[3]), [lhs]) }
+
+Ordering
+  = expr:Operand
+    cond:(
+        __ "ASC"i { return 'asc' }
+      / __ "DESC"i { return 'desc' }
+      / __ "USING"i _ op:$( "<" / ">" ) { return op }
+    )
 
 RelationList
   = item1:RelationItem _ "," _ items:RelationList
@@ -118,14 +152,6 @@ Join
         { return ['using', list] }
     )?
   { return makeJoin(item1, item2, jtype, jcond) }
-
-TargetClause
-  = spec:$( "DISTINCT"i __ / "ALL"i __ )?
-    target:(
-      "*"
-      / TargetList
-    )
-  { return { 'type': "targetclause", 'specifier': spec || null, 'targetlist': target} }
 
 TargetList
   = item1:TargetItem _ "," _ items:TargetList
@@ -271,7 +297,7 @@ AggFunctionSum
 /***** PRIMITIVES *****/
 
 Name
-  = StringLiteral
+  = DQStringLiteral
     / $( "`" [A-Za-z_][A-Za-z0-9_]* "`" )
     / !ReservedWord Ident
 
@@ -321,13 +347,19 @@ JoinType "JoinType"
 /***** LITERALS *****/
 
 Literal "Literal"
-  = StringLiteral
+  = SQStringLiteral
     / NumericLiteral
     / BooleanLiteral
     / NullLiteral
 
-StringLiteral "string"
-  = $( "\"" [^\"]+ "\"" )
+BTStringLiteral "backtick string"
+  = $( '`' ( [^`] / '``' )+ '`' )
+
+DQStringLiteral "double-quote string"
+  = $( '"' ( [^"] / '""' )+ '"' )
+
+SQStringLiteral "single-quote string"
+  = $( "'" ( [^'] / "''" )* "'" !SQStringLiteral )
 
 ExponentialLiteral "exponential"
   = val:$( NumericLiteral "e" IntegerLiteral )
@@ -373,5 +405,5 @@ Comment "Comment"
     / "--" ( !"\n" . )* "\n" {}
 
 ReservedWord
-  = ("ABS"i / "ALL"i / "ALLOCATE"i / "ALTER"i / "AND"i / "ANY"i / "ARE"i / "ARRAY"i / "ARRAY_AGG"i / "AS"i / "ASENSITIVE"i / "ASYMMETRIC"i / "AT"i / "ATOMIC"i / "AUTHORIZATION"i / "AVG"i / "BEGIN"i / "BETWEEN"i / "BIGINT"i / "BINARY"i / "BLOB"i / "BOOLEAN"i / "BOTH"i / "BY"i / "CALL"i / "CALLED"i / "CARDINALITY"i / "CASCADED"i / "CASE"i / "CAST"i / "CEIL"i / "CEILING"i / "CHAR"i / "CHARACTER"i / "CHARACTER_LENGTH"i / "CHAR_LENGTH"i / "CHECK"i / "CLOB"i / "CLOSE"i / "COALESCE"i / "COLLATE"i / "COLLECT"i / "COLUMN"i / "COMMIT"i / "CONDITION"i / "CONNECT"i / "CONSTRAINT"i / "CONVERT"i / "CORR"i / "CORRESPONDING"i / "COUNT"i / "COVAR_POP"i / "COVAR_SAMP"i / "CREATE"i / "CROSS"i / "CUBE"i / "CUME_DIST"i / "CURRENT"i / "CURRENT_CATALOG"i / "CURRENT_DATE"i / "CURRENT_DEFAULT_TRANSFORM_GROUP"i / "CURRENT_PATH"i / "CURRENT_ROLE"i / "CURRENT_SCHEMA"i / "CURRENT_TIME"i / "CURRENT_TIMESTAMP"i / "CURRENT_TRANSFORM_GROUP_FOR_TYPE"i / "CURRENT_USER"i / "CURSOR"i / "CYCLE"i / "DATALINK"i / "DATE"i / "DAY"i / "DEALLOCATE"i / "DEC"i / "DECIMAL"i / "DECLARE"i / "DEFAULT"i / "DELETE"i / "DENSE_RANK"i / "DEREF"i / "DESCRIBE"i / "DETERMINISTIC"i / "DISCONNECT"i / "DISTINCT"i / "DLNEWCOPY"i / "DLPREVIOUSCOPY"i / "DLURLCOMPLETE"i / "DLURLCOMPLETEONLY"i / "DLURLCOMPLETEWRITE"i / "DLURLPATH"i / "DLURLPATHONLY"i / "DLURLPATHWRITE"i / "DLURLSCHEME"i / "DLURLSERVER"i / "DLVALUE"i / "DOUBLE"i / "DROP"i / "DYNAMIC"i / "EACH"i / "ELEMENT"i / "ELSE"i / "END"i / "END-EXEC"i / "ESCAPE"i / "EVERY"i / "EXCEPT"i / "EXEC"i / "EXECUTE"i / "EXISTS"i / "EXP"i / "EXTERNAL"i / "EXTRACT"i / "FALSE"i / "FETCH"i / "FILTER"i / "FIRST_VALUE"i / "FLOAT"i / "FLOOR"i / "FOR"i / "FOREIGN"i / "FREE"i / "FROM"i / "FULL"i / "FUNCTION"i / "FUSION"i / "GET"i / "GLOBAL"i / "GRANT"i / "GROUP"i / "GROUPING"i / "HAVING"i / "HOLD"i / "HOUR"i / "IDENTITY"i / "IMPORT"i / "IN"i / "INDICATOR"i / "INNER"i / "INOUT"i / "INSENSITIVE"i / "INSERT"i / "INT"i / "INTEGER"i / "INTERSECT"i / "INTERSECTION"i / "INTERVAL"i / "INTO"i / "IS"i / "JOIN"i / "LAG"i / "LANGUAGE"i / "LARGE"i / "LAST_VALUE"i / "LATERAL"i / "LEAD"i / "LEADING"i / "LEFT"i / "LIKE"i / "LIKE_REGEX"i / "LN"i / "LOCAL"i / "LOCALTIME"i / "LOCALTIMESTAMP"i / "LOWER"i / "MATCH"i / "MAX"i / "MAX_CARDINALITY"i / "MEMBER"i / "MERGE"i / "METHOD"i / "MIN"i / "MINUTE"i / "MOD"i / "MODIFIES"i / "MODULE"i / "MONTH"i / "MULTISET"i / "NATIONAL"i / "NATURAL"i / "NCHAR"i / "NCLOB"i / "NEW"i / "NO"i / "NONE"i / "NORMALIZE"i / "NOT"i / "NTH_VALUE"i / "NTILE"i / "NULL"i / "NULLIF"i / "NUMERIC"i / "OCCURRENCES_REGEX"i / "OCTET_LENGTH"i / "OF"i / "OFFSET"i / "OLD"i / "ON"i / "ONLY"i / "OPEN"i / "OR"i / "ORDER"i / "OUT"i / "OUTER"i / "OVER"i / "OVERLAPS"i / "OVERLAY"i / "PARAMETER"i / "PARTITION"i / "PERCENTILE_CONT"i / "PERCENTILE_DISC"i / "PERCENT_RANK"i / "POSITION"i / "POSITION_REGEX"i / "POWER"i / "PRECISION"i / "PREPARE"i / "PRIMARY"i / "PROCEDURE"i / "RANGE"i / "RANK"i / "READS"i / "REAL"i / "RECURSIVE"i / "REF"i / "REFERENCES"i / "REFERENCING"i / "REGR_AVGX"i / "REGR_AVGY"i / "REGR_COUNT"i / "REGR_INTERCEPT"i / "REGR_R2"i / "REGR_SLOPE"i / "REGR_SXX"i / "REGR_SXY"i / "REGR_SYY"i / "RELEASE"i / "RESULT"i / "RETURN"i / "RETURNS"i / "REVOKE"i / "RIGHT"i / "ROLLBACK"i / "ROLLUP"i / "ROW"i / "ROWS"i / "ROW_NUMBER"i / "SAVEPOINT"i / "SCOPE"i / "SCROLL"i / "SEARCH"i / "SECOND"i / "SELECT"i / "SENSITIVE"i / "SESSION_USER"i / "SET"i / "SIMILAR"i / "SMALLINT"i / "SOME"i / "SPECIFIC"i / "SPECIFICTYPE"i / "SQL"i / "SQLEXCEPTION"i / "SQLSTATE"i / "SQLWARNING"i / "SQRT"i / "START"i / "STATIC"i / "STDDEV_POP"i / "STDDEV_SAMP"i / "SUBMULTISET"i / "SUBSTRING"i / "SUBSTRING_REGEX"i / "SUM"i / "SYMMETRIC"i / "SYSTEM"i / "SYSTEM_USER"i / "TABLE"i / "TABLESAMPLE"i / "THEN"i / "TIME"i / "TIMESTAMP"i / "TIMEZONE_HOUR"i / "TIMEZONE_MINUTE"i / "TO"i / "TRAILING"i / "TRANSLATE"i / "TRANSLATE_REGEX"i / "TRANSLATION"i / "TREAT"i / "TRIGGER"i / "TRIM"i / "TRIM_ARRAY"i / "TRUE"i / "TRUNCATE"i / "UESCAPE"i / "UNION"i / "UNIQUE"i / "UNKNOWN"i / "UNNEST"i / "UPDATE"i / "UPPER"i / "USER"i / "USING"i / "VALUE"i / "VALUES"i / "VARBINARY"i / "VARCHAR"i / "VARYING"i / "VAR_POP"i / "VAR_SAMP"i / "WHEN"i / "WHENEVER"i / "WHERE"i / "WIDTH_BUCKET"i / "WINDOW"i / "WITH"i / "WITHIN"i / "WITHOUT"i / "XML"i / "XMLAGG"i / "XMLATTRIBUTES"i / "XMLBINARY"i / "XMLCAST"i / "XMLCOMMENT"i / "XMLCONCAT"i / "XMLDOCUMENT"i / "XMLELEMENT"i / "XMLEXISTS"i / "XMLFOREST"i / "XMLITERATE"i / "XMLNAMESPACES"i / "XMLPARSE"i / "XMLPI"i / "XMLQUERY"i / "XMLSERIALIZE"i / "XMLTABLE"i / "XMLTEXT"i / "XMLVALIDATE"i / "YEAR"i
+  = $("ABS"i / "ALL"i / "ALLOCATE"i / "ALTER"i / "AND"i / "ANY"i / "ARE"i / "ARRAY"i / "ARRAY_AGG"i / "AS"i / "ASENSITIVE"i / "ASYMMETRIC"i / "AT"i / "ATOMIC"i / "AUTHORIZATION"i / "AVG"i / "BEGIN"i / "BETWEEN"i / "BIGINT"i / "BINARY"i / "BLOB"i / "BOOLEAN"i / "BOTH"i / "BY"i / "CALL"i / "CALLED"i / "CARDINALITY"i / "CASCADED"i / "CASE"i / "CAST"i / "CEIL"i / "CEILING"i / "CHAR"i / "CHARACTER"i / "CHARACTER_LENGTH"i / "CHAR_LENGTH"i / "CHECK"i / "CLOB"i / "CLOSE"i / "COALESCE"i / "COLLATE"i / "COLLECT"i / "COLUMN"i / "COMMIT"i / "CONDITION"i / "CONNECT"i / "CONSTRAINT"i / "CONVERT"i / "CORR"i / "CORRESPONDING"i / "COUNT"i / "COVAR_POP"i / "COVAR_SAMP"i / "CREATE"i / "CROSS"i / "CUBE"i / "CUME_DIST"i / "CURRENT"i / "CURRENT_CATALOG"i / "CURRENT_DATE"i / "CURRENT_DEFAULT_TRANSFORM_GROUP"i / "CURRENT_PATH"i / "CURRENT_ROLE"i / "CURRENT_SCHEMA"i / "CURRENT_TIME"i / "CURRENT_TIMESTAMP"i / "CURRENT_TRANSFORM_GROUP_FOR_TYPE"i / "CURRENT_USER"i / "CURSOR"i / "CYCLE"i / "DATALINK"i / "DATE"i / "DAY"i / "DEALLOCATE"i / "DEC"i / "DECIMAL"i / "DECLARE"i / "DEFAULT"i / "DELETE"i / "DENSE_RANK"i / "DEREF"i / "DESCRIBE"i / "DETERMINISTIC"i / "DISCONNECT"i / "DISTINCT"i / "DLNEWCOPY"i / "DLPREVIOUSCOPY"i / "DLURLCOMPLETE"i / "DLURLCOMPLETEONLY"i / "DLURLCOMPLETEWRITE"i / "DLURLPATH"i / "DLURLPATHONLY"i / "DLURLPATHWRITE"i / "DLURLSCHEME"i / "DLURLSERVER"i / "DLVALUE"i / "DOUBLE"i / "DROP"i / "DYNAMIC"i / "EACH"i / "ELEMENT"i / "ELSE"i / "END"i / "END-EXEC"i / "ESCAPE"i / "EVERY"i / "EXCEPT"i / "EXEC"i / "EXECUTE"i / "EXISTS"i / "EXP"i / "EXTERNAL"i / "EXTRACT"i / "FALSE"i / "FETCH"i / "FILTER"i / "FIRST_VALUE"i / "FLOAT"i / "FLOOR"i / "FOR"i / "FOREIGN"i / "FREE"i / "FROM"i / "FULL"i / "FUNCTION"i / "FUSION"i / "GET"i / "GLOBAL"i / "GRANT"i / "GROUP"i / "GROUPING"i / "HAVING"i / "HOLD"i / "HOUR"i / "IDENTITY"i / "IMPORT"i / "IN"i / "INDICATOR"i / "INNER"i / "INOUT"i / "INSENSITIVE"i / "INSERT"i / "INT"i / "INTEGER"i / "INTERSECT"i / "INTERSECTION"i / "INTERVAL"i / "INTO"i / "IS"i / "JOIN"i / "LAG"i / "LANGUAGE"i / "LARGE"i / "LAST_VALUE"i / "LATERAL"i / "LEAD"i / "LEADING"i / "LEFT"i / "LIKE"i / "LIKE_REGEX"i / "LN"i / "LOCAL"i / "LOCALTIME"i / "LOCALTIMESTAMP"i / "LOWER"i / "MATCH"i / "MAX"i / "MAX_CARDINALITY"i / "MEMBER"i / "MERGE"i / "METHOD"i / "MIN"i / "MINUTE"i / "MOD"i / "MODIFIES"i / "MODULE"i / "MONTH"i / "MULTISET"i / "NATIONAL"i / "NATURAL"i / "NCHAR"i / "NCLOB"i / "NEW"i / "NO"i / "NONE"i / "NORMALIZE"i / "NOT"i / "NTH_VALUE"i / "NTILE"i / "NULL"i / "NULLIF"i / "NUMERIC"i / "OCCURRENCES_REGEX"i / "OCTET_LENGTH"i / "OF"i / "OFFSET"i / "OLD"i / "ON"i / "ONLY"i / "OPEN"i / "OR"i / "ORDER"i / "OUT"i / "OUTER"i / "OVER"i / "OVERLAPS"i / "OVERLAY"i / "PARAMETER"i / "PARTITION"i / "PERCENTILE_CONT"i / "PERCENTILE_DISC"i / "PERCENT_RANK"i / "POSITION"i / "POSITION_REGEX"i / "POWER"i / "PRECISION"i / "PREPARE"i / "PRIMARY"i / "PROCEDURE"i / "RANGE"i / "RANK"i / "READS"i / "REAL"i / "RECURSIVE"i / "REF"i / "REFERENCES"i / "REFERENCING"i / "REGR_AVGX"i / "REGR_AVGY"i / "REGR_COUNT"i / "REGR_INTERCEPT"i / "REGR_R2"i / "REGR_SLOPE"i / "REGR_SXX"i / "REGR_SXY"i / "REGR_SYY"i / "RELEASE"i / "RESULT"i / "RETURN"i / "RETURNS"i / "REVOKE"i / "RIGHT"i / "ROLLBACK"i / "ROLLUP"i / "ROW"i / "ROWS"i / "ROW_NUMBER"i / "SAVEPOINT"i / "SCOPE"i / "SCROLL"i / "SEARCH"i / "SECOND"i / "SELECT"i / "SENSITIVE"i / "SESSION_USER"i / "SET"i / "SIMILAR"i / "SMALLINT"i / "SOME"i / "SPECIFIC"i / "SPECIFICTYPE"i / "SQL"i / "SQLEXCEPTION"i / "SQLSTATE"i / "SQLWARNING"i / "SQRT"i / "START"i / "STATIC"i / "STDDEV_POP"i / "STDDEV_SAMP"i / "SUBMULTISET"i / "SUBSTRING"i / "SUBSTRING_REGEX"i / "SUM"i / "SYMMETRIC"i / "SYSTEM"i / "SYSTEM_USER"i / "TABLE"i / "TABLESAMPLE"i / "THEN"i / "TIME"i / "TIMESTAMP"i / "TIMEZONE_HOUR"i / "TIMEZONE_MINUTE"i / "TO"i / "TRAILING"i / "TRANSLATE"i / "TRANSLATE_REGEX"i / "TRANSLATION"i / "TREAT"i / "TRIGGER"i / "TRIM"i / "TRIM_ARRAY"i / "TRUE"i / "TRUNCATE"i / "UESCAPE"i / "UNION"i / "UNIQUE"i / "UNKNOWN"i / "UNNEST"i / "UPDATE"i / "UPPER"i / "USER"i / "USING"i / "VALUE"i / "VALUES"i / "VARBINARY"i / "VARCHAR"i / "VARYING"i / "VAR_POP"i / "VAR_SAMP"i / "WHEN"i / "WHENEVER"i / "WHERE"i / "WIDTH_BUCKET"i / "WINDOW"i / "WITH"i / "WITHIN"i / "WITHOUT"i / "XML"i / "XMLAGG"i / "XMLATTRIBUTES"i / "XMLBINARY"i / "XMLCAST"i / "XMLCOMMENT"i / "XMLCONCAT"i / "XMLDOCUMENT"i / "XMLELEMENT"i / "XMLEXISTS"i / "XMLFOREST"i / "XMLITERATE"i / "XMLNAMESPACES"i / "XMLPARSE"i / "XMLPI"i / "XMLQUERY"i / "XMLSERIALIZE"i / "XMLTABLE"i / "XMLTEXT"i / "XMLVALIDATE"i / "YEAR"i
   ) !Ident
