@@ -1,0 +1,9 @@
+.tree-row {
+  &:nth-child(2n) {
+    background: #fff
+  }
+
+  &:nth-child(2n+1) {
+    background: #999
+  }
+}
