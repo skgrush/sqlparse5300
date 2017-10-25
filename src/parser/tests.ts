@@ -47,16 +47,16 @@ having count(g.*) > 5`,
 `SELECT \`loan-number\`, \`branch-name\`, amount * 100
 FROM    loan`,
 
-`SELECT DISTINCT loan-number
+`SELECT DISTINCT \`loan-number\`
 FROM loan
 WHERE amount between 90000 and 100000`,
 
 `SELECT P.\`P#\`, 'Weight in Grams = ', P.Weight * 454
 FROM P;`,
 
-`SELECT Supplier_name = Sname , STATUS
+`SELECT \`Supplier name\` = Sname , STATUS
   FROM S
-  WHERE CITY = ‘Paris’;`,
+  WHERE CITY = 'Paris';`,
 
 `SELECT P.*
 FROM P
@@ -70,7 +70,7 @@ WHERE P.City NOT LIKE '%E'`,
   WHERE \`S#\` IN
     ( SELECT \`S#\`
         FROM SP
-        WHERE \`P# = 'P_2' );`,
+        WHERE \`P#\` = 'P_2' );`,
 
 `SELECT Sname
   FROM S
