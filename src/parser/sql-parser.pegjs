@@ -113,13 +113,16 @@ Statements
 Statement
   = stmt:(
       Select
-      / SelectUnion
+      / SelectPair
     )
     { return stmt }
 
-SelectUnion
-  = lhs:Select __ "UNION"i __ all:( "ALL"i __ )? rhs:( Select / SelectUnion )
-  { return [lhs, 'union', all && 'all', rhs] }
+SelectPair
+  = lhs:Select __
+    pairing:( "UNION"i / "INTERSECT"i / "EXCEPT"i ) __
+    spec:( "ALL"i __ / "DISTINCT"i __ )?
+    rhs:( Select / SelectPair )
+  { return [lhs, 'union', spec && spec[0], rhs] }
 
 Select
   = "SELECT"i __ what:TargetClause __
@@ -129,7 +132,7 @@ Select
     having:(  __ "HAVING"i __          HavingClause )?
     orderBy:( __ "ORDER"i  __ "BY"i __ OrderByClause )?
   { return {
-      "type": "selectclause",
+      "type": SELECTCLAUSE_TYPE,
       what,
       from,
       'where': where && where[2],
@@ -146,7 +149,7 @@ TargetClause
       / TargetList
     )
   { return {
-      'type': "targetclause",
+      'type': TARGETCLAUSE_TYPE,
       'specifier': spec || null,
       'targetlist': target
     }
@@ -174,7 +177,7 @@ Ordering
         __ "ASC"i { return 'asc' }
       / __ "DESC"i { return 'desc' }
       / __ "USING"i _ op:$( "<" / ">" ) { return op }
-    )
+    )?
 
 RelationList
   = item1:RelationItem _ "," _ items:RelationList
@@ -203,7 +206,7 @@ Join
       __ "ON"i
       __ expr:Condition
       { return expr }
-      / __ "USING"i
+      / __ "USING"i _
         "(" _ list:TargetList _ ")"
         { return ['using', list] }
     )?
@@ -216,10 +219,10 @@ TargetList
     { return [item] }
 
 TargetItem "TargetItem"
-  = tableName:Name ".*"
-  { return makeColumn(`${tableName}.*`, null) }
-  / term:Term alias:( __ ( "AS"i __ )? ColumnAlias )?
-  { return makeColumn(term, alias && alias[2]) }
+  = table:Name ".*"
+  { return makeColumn(table, '*', null) }
+  / term:Term alias:( __ ( "AS"i __ )? Name )?
+  { return makeColumn(null, term, alias && alias[2]) }
 
 Condition "Condition"
   = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
@@ -298,11 +301,12 @@ ConditionNull
 Term
   = Literal
     / AggFunction
-    / "(" _ Operand _ ")"
+    / "(" _ op:Operand _ ")" { return op }
     / ColumnRef
 
 ColumnRef
-  = $( ( table:Name "." )? column:Name )
+  = tbl:( table:Name "." )? column:Name
+    { return makeColumn(tbl && tbl[0], column) }
 
 AggFunction "aggregate function"
   = AggFunctionAvg
@@ -351,25 +355,33 @@ Name
     / BTStringLiteral
     / !ReservedWord id:Ident {return id }
 
-Ident
+Ident "UnquotedIdent"
   = $( [A-Za-z_][A-Za-z0-9_]* )
 
 Operands
   = lhs:Operand
     rhs:( _ "," _ Operand )*
-  { return rhs.reduce((result, element) => result.concat(element[3]), [lhs]) }
+  {
+    if (rhs.length)
+      return rhs.reduce((result, element) => result.concat(element[3]), [lhs])
+    else
+      return lhs
+  }
 
 Operand
-  = Summand
-    ( _ "||" _ Summand ) *
+  = lhs:Summand
+    rhs:( _ "||" _ Summand ) *
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation("||", lh, rh[3])) }
 
 Summand
-  = Factor
-    ( _ ("+" / "-") _ Factor ) *
+  = lhs:Factor
+    rhs:( _ ("+" / "-") _ Factor ) *
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation(rh[1], lh, rh[3])) }
 
 Factor
-  = Term
-    ( _ ("*" / "/") _ Term ) *
+  = lhs:Term
+    rhs:( _ ("*" / "/") _ Term ) *
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation(rh[1], lh, rh[3])) }
 
 Compare
   = "<>"
@@ -440,10 +452,10 @@ TruePrim
 FalsePrim
   = "FALSE"i
 
-_ "OptionalWhitespace"
+_ "OptWhitespace"
   = WS* Comment? WS* {}
 
-__ "RequiredWhitespace"
+__ "ReqWhitespace"
   = WS+ Comment? WS* {}
     / WS* Comment? WS+ {}
 
