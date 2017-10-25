@@ -81,9 +81,9 @@ SelectUnion
 Select
   = "SELECT"i __ what:TargetClause __
     "FROM"i   __ from:FromClause
-    where:(   __ "WHERE"i  __          Condition )?
-    groupBy:( __ "GROUP"i  __ "BY"i __ TargetList )?
-    having:(  __ "HAVING"i __          Condition )?
+    where:(   __ "WHERE"i  __          WhereClause )?
+    groupBy:( __ "GROUP"i  __ "BY"i __ GroupByClause )?
+    having:(  __ "HAVING"i __          HavingClause )?
     orderBy:( __ "ORDER"i  __ "BY"i __ OrderByClause )?
   { return {
       "type": "selectclause",
@@ -102,15 +102,24 @@ TargetClause
       "*"
       / TargetList
     )
-  { return { 'type': "targetclause", 'specifier': spec || null, 'targetlist': target} }
+  { return {
+      'type': "targetclause",
+      'specifier': spec || null,
+      'targetlist': target
+    }
+  }
 
 FromClause
   = from:RelationList
-    { return {
-        "type": "fromclause",
-        "from": from
-      }
-    }
+
+WhereClause
+  = where:Condition
+
+GroupByClause
+  = groupBy:TargetList
+
+HavingClause
+  = having:Condition
 
 OrderByClause
   = lhs:Ordering rhs:( _ "," _ Ordering )*
@@ -179,13 +188,13 @@ AndCondition
 
 InnerCondition
   = (
-    Operand
-    / ConditionComp
+    ConditionComp
     / ConditionIn
     / ConditionExists
     / ConditionLike
     / ConditionBetween
     / ConditionNull
+    / Operand
   )
   / "NOT"i __ expr:Condition
   { return makeConditional('not', expr) }
@@ -252,12 +261,6 @@ Term
 ColumnRef
   = $( ( table:Name "." )? column:Name )
 
-TableName
-  = Name
-
-ColumnAlias
-  = Name
-
 AggFunction "aggregate function"
   = AggFunctionAvg
     / AggFunctionCount
@@ -303,7 +306,7 @@ AggFunctionSum
 Name
   = DQStringLiteral
     / BTStringLiteral
-    / !ReservedWord Ident
+    / !ReservedWord id:Ident {return id }
 
 Ident
   = $( [A-Za-z_][A-Za-z0-9_]* )
