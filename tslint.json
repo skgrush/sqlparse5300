@@ -12,6 +12,7 @@
     "no-console": [false],
     "trailing-comma": false,
     "semicolon": [true, "never"],
-    "quotemark": [false]
+    "quotemark": [false],
+    "no-var-requires": false
   }
 }

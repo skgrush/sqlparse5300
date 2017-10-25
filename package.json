@@ -10,6 +10,7 @@
     "@types/react": "^16.0.16",
     "@types/react-dom": "^16.0.2",
     "@types/react-json-pretty": "^1.3.2",
+    "pegjs-backtrace": "^0.1.1",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "react-json-pretty": "^1.7.4"
@@ -24,7 +25,7 @@
     "webpack": "^3.8.1"
   },
   "scripts": {
-    "build-parser": "pegjs --plugin ./node_modules/ts-pegjs/src/tspegjs -o src/parser/sql-parser.ts src/parser/sql-parser.pegjs",
+    "build-parser": "pegjs --trace --plugin ./node_modules/ts-pegjs/src/tspegjs -o src/parser/sql-parser.ts src/parser/sql-parser.pegjs",
     "build-webpack": "webpack",
     "build": "yarn run build-parser && yarn run build-webpack"
   }
