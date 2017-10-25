@@ -95,6 +95,7 @@
     return {
       "type": OPERATION_TYPE,
       lhs,
+      op,
       rhs
     }
   }
@@ -221,8 +222,15 @@ TargetList
 TargetItem "TargetItem"
   = table:Name ".*"
   { return makeColumn(table, '*', null) }
-  / term:Term alias:( __ ( "AS"i __ )? Name )?
-  { return makeColumn(null, term, alias && alias[2]) }
+  / op:Operand
+    alias:(
+      (
+        __ ( "AS"i __ )?
+      / _ "=" _
+      )
+      Name
+    )?
+  { return makeColumn(null, op, alias && alias[2]) }
 
 Condition "Condition"
   = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
@@ -256,7 +264,7 @@ ConditionIn
     not:( "NOT"i __ )?
     "IN"i _
     "(" _
-      rhs_ops:Operands
+      rhs_ops:OperandList
     ")"
   { return makeConditional('in', lhs_op, rhs_ops, not) }
 
@@ -358,7 +366,7 @@ Name
 Ident "UnquotedIdent"
   = $( [A-Za-z_][A-Za-z0-9_]* )
 
-Operands
+OperandList
   = lhs:Operand
     rhs:( _ "," _ Operand )*
   {
