@@ -6,11 +6,13 @@
   "rules": {
     "interface-name": [true, "never-prefix"],
     "object-literal-sort-keys": false,
+    "ordered-imports": false,
     "curly": false,
     "member-access": false,
     "no-console": [false],
     "trailing-comma": false,
     "semicolon": [true, "never"],
-    "quotemark": [false]
+    "quotemark": [false],
+    "no-var-requires": false
   }
 }

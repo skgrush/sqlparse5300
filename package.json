@@ -24,7 +24,8 @@
     "webpack": "^3.8.1"
   },
   "scripts": {
-    "build": "webpack",
-    "tsc": "tsc"
+    "build-parser": "pegjs --trace --plugin ./node_modules/ts-pegjs/src/tspegjs -o src/parser/sql-parser.ts src/parser/sql-parser.pegjs",
+    "build-webpack": "webpack",
+    "build": "yarn run build-parser && yarn run build-webpack"
   }
 }
