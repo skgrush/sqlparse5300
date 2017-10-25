@@ -10,13 +10,34 @@
 
 // initializer
 {
-  function makeColumn(target: any, alias: string|null = null) {
+  /**
+   * IFF rhs is non-empty, run reduce using f on rhs initialized by lhs.
+   * Else return lhs
+   */
+  function reduceIfRHS(lhs: any, rhs: any[], f: (L, R) => any) {
+    if (rhs.length)
+      return rhs.reduce(f, lhs)
+    return lhs
+  }
+
+  const COLUMN_TYPE = "column"
+  function makeColumn(relation: any, target: any, alias: string|null = null) {
+    if (target.type === COLUMN_TYPE && !(target.relation && relation)) {
+      if (relation)
+        target.relation = relation
+      if (alias)
+        target.alias = alias
+      return target
+    }
     return {
-      "type": "column",
-      "target": target,
-      "alias": alias
+      "type": COLUMN_TYPE,
+      relation,
+      target,
+      alias
     }
   }
+
+  const JOIN_TYPE = "join"
   function makeJoin(lhs: any, rhs: any, joinType: string = 'join', condition: any = null) {
     /* jointypes:
         join: "," "JOIN" "CROSS JOIN"
@@ -27,23 +48,32 @@
         fullouter: "FULL [OUTER] JOIN"
      */
     return {
-      "type": "join",
+      "type": JOIN_TYPE,
       joinType,
       condition,
       lhs,
       rhs
     }
   }
+
+  const RELATION_TYPE = "relation"
   function makeRelation(target: any, alias: string|null = null) {
+    if (target.type === RELATION_TYPE) {
+      if (alias)
+        target.alias = alias
+      return target
+    }
     return {
-      "type": "relation",
+      "type": RELATION_TYPE,
       target,
       alias
     }
   }
+
+  const CONDITIONAL_TYPE = "conditional"
   function makeConditional(operation: string, lhs: any, rhs: any = null, not: boolean = false) {
     return {
-      "type": "conditional",
+      "type": CONDITIONAL_TYPE,
       operation,
       lhs,
       rhs,
@@ -51,13 +81,26 @@
     }
   }
 
+  const AGGFUNCTION_TYPE = "aggfunction"
   function makeAggFunction(fname: string, expr: string) {
     return {
-      "type": "function",
+      "type": AGGFUNCTION_TYPE,
       fname,
       expr
     }
   }
+
+  const OPERATION_TYPE = "operation"
+  function makeOperation(op: string, lhs: any, rhs: any) {
+    return {
+      "type": OPERATION_TYPE,
+      lhs,
+      rhs
+    }
+  }
+
+  const SELECTCLAUSE_TYPE = "selectclause"
+  const TARGETCLAUSE_TYPE = "targetclause"
 }
 
 start
