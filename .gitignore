@@ -3,6 +3,6 @@ node_modules/
 # tsc generated files
 dist/bundle.js
 
-src/parser/sql-parser.[jt]s
+src/parser/peg/*.[jt]s
 
 !**/.gitkeep

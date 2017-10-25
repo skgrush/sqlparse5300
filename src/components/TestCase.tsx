@@ -2,7 +2,7 @@ import * as React from "react"
 
 import * as JSONPretty from 'react-json-pretty'
 
-import {parse, SyntaxError} from "../parser/sql-parser"
+import {parse, SyntaxError} from "../parser/peg/sql"
 
 const Tracer = require('pegjs-backtrace')
 
