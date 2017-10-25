@@ -13,14 +13,14 @@ interface TreeState {
 export default
 class Tree extends React.Component<TreeProps, TreeState> {
   render() {
-      let rows = []
+      const rows: JSX.Element[] = []
       let node = this.props.root
       let depth = 0
-      while(node) {
+      while (node) {
         const row = <TreeRow
                       node={node}
                       key={depth}
-                      offset={this.props.margin*depth}/>
+                      offset={this.props.margin * depth}/>
         rows.push(row)
         depth++
         node = node.children[0]
