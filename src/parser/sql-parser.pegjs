@@ -136,7 +136,7 @@ Select
       "type": SELECTCLAUSE_TYPE,
       what,
       from,
-      'where': where && where[2],
+      'where': where && where[3],
       'groupBy': groupBy && groupBy[5],
       'having': having && having[3],
       'orderBy': orderBy && orderBy[5]
@@ -222,15 +222,14 @@ TargetList
 TargetItem "TargetItem"
   = table:Name ".*"
   { return makeColumn(table, '*', null) }
+  / op:Operand __ "AS"i __ alias:Name
+  { return makeColumn(null, op, alias )}
+  / op:Operand __ alias:Name
+  { return makeColumn(null, op, alias )}
+  / op:Operand _ "=" _ alias:Name
+  { return makeColumn(null, op, alias) }
   / op:Operand
-    alias:(
-      (
-        __ ( "AS"i __ )?
-      / _ "=" _
-      )
-      Name
-    )?
-  { return makeColumn(null, op, alias && alias[2]) }
+  { return makeColumn(null, op) }
 
 Condition "Condition"
   = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
@@ -248,7 +247,7 @@ InnerCondition
     / ConditionLike
     / ConditionBetween
     / ConditionNull
-    / Operand
+//    / Operand
   )
   / "NOT"i __ expr:Condition
   { return makeConditional('not', expr) }
@@ -264,7 +263,7 @@ ConditionIn
     not:( "NOT"i __ )?
     "IN"i _
     "(" _
-      rhs_ops:OperandList
+      rhs_ops:( OperandList ) _
     ")"
   { return makeConditional('in', lhs_op, rhs_ops, not) }
 
@@ -380,6 +379,7 @@ Operand
   = lhs:Summand
     rhs:( _ "||" _ Summand ) *
   { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation("||", lh, rh[3])) }
+  / Select
 
 Summand
   = lhs:Factor
