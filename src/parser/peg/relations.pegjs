@@ -25,7 +25,7 @@ Column
 
 /* sql primitives */
 
-Name
+Name "Name"
   = DQStringLiteral
     / BTStringLiteral
     / Ident

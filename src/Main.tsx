@@ -2,6 +2,8 @@ import * as React from "react"
 
 import * as JSONPretty from 'react-json-pretty'
 
+const Tracer = require('pegjs-backtrace')
+
 import {Catalog} from 'parser/types'
 import {parseRelations, parseSql, sqlToRelationalAlgebra} from './parser/parsing'
 
@@ -42,31 +44,41 @@ export default class Main extends React.Component<any, MainState> {
   }
 
   onQueryInputUpdate(text: string): void {
-    this.setState({queryInputText: text})
-    this.parseQuery()
+    this.setState({queryInputText: text},
+      () => this.parseQuery())
+
   }
 
   parseQuery(): void {
     this.status = "Parsing relations"
+    const relatTracer = new Tracer(this.state.relationsInputText, {
+      useColor: false,
+      showTrace: true
+    })
     try {
-      this.catalog = parseRelations(this.state.relationsInputText)
+      this.catalog = parseRelations(this.state.relationsInputText, {tracer: relatTracer})
     } catch (ex) {
-      this.status = ex.message
+      this.status = `Parsing Relations:  ${ex.message}`
       this.relJSON = this.queryJSON = this.catalog = null
-      console.error(ex)
+      console.error("ERR1", ex)
+      // console.info(relatTracer.getParseTreeString())
       return
     }
 
     this.status = "Parsing query"
+    const queryTracer = new Tracer(this.state.queryInputText, {
+      useColor: false,
+      showTrace: true
+    })
     try {
-      this.queryJSON = parseSql(this.state.queryInputText)
+      this.queryJSON = parseSql(this.state.queryInputText, {tracer: queryTracer})
       this.status = "Query parsed"
       console.log(this.queryJSON)
     } catch (ex) {
       const err: SyntaxError = ex
-      this.status = err.message
+      this.status = `Parsing query:  ${err.message}`
       this.relJSON = this.queryJSON = this.catalog = null
-      console.error(err)
+      console.error("ERR2", err)
       return
     }
 
@@ -74,6 +86,7 @@ export default class Main extends React.Component<any, MainState> {
     try {
       this.relJSON = sqlToRelationalAlgebra(this.queryJSON, this.catalog)
     } catch (ex) {
+      console.error("ERR3", ex)
       this.status = ex.message
       this.relJSON = this.queryJSON = this.catalog = null
       return

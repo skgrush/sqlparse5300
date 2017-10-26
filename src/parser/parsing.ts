@@ -4,12 +4,12 @@ import { parse as SqlParse } from './peg/sql'
 import * as types from './types'
 import {fromSqlSelect, fromSelectPair} from './sqlToRel'
 
-export function parseRelations(input: string): types.Catalog {
-  return RelationParse(input, undefined)
+export function parseRelations(input: string, args?): types.Catalog {
+  return types.Catalog.fromParse(RelationParse(input, args))
 }
 
-export function parseSql(input: string) {
-  const sql = SqlParse(input, undefined)
+export function parseSql(input: string, args?) {
+  return SqlParse(input, args)
 }
 
 export function sqlToRelationalAlgebra(sqlStatements, catalog: types.Catalog) {

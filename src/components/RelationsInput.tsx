@@ -8,7 +8,7 @@ export default class RelationsInput extends React.Component<RelationsInputProps,
   render() {
     return (
       <div id="relations-input-wrapper">
-        <textarea id="relations-input" />
+        <textarea id="relations-input" onChange={(e) => this.props.onUpdate(e.target.value)} />
       </div>
     )
   }
