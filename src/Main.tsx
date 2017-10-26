@@ -11,6 +11,8 @@ import QueryInput from './components/QueryInput'
 import RelationsInput from './components/RelationsInput'
 import Tests from './components/Tests'
 
+import {htmlHLR} from './parser/relationalText'
+
 export interface MainState {
   relationsInputText: string
   queryInputText: string
@@ -125,9 +127,16 @@ export default class Main extends React.Component<any, MainState> {
         <div id="query-output-test">
           <JSONPretty json={this.state.queryJSON} />
         </div>
-        <h3>Relational</h3>
+        <h3>Relational JSON</h3>
         <div id="rel-output">
           <JSONPretty json={this.state.relJSON} />
+        </div>
+        <h3>Relational HTML</h3>
+        <div id="rel-html">
+          {
+            this.state.relJSON &&
+            htmlHLR(this.state.relJSON)
+          }
         </div>
         <div id="debug-output">
           <pre><code>{this.state.debug}</code></pre>

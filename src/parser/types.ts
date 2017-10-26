@@ -276,7 +276,7 @@ export class RelConditional {
   }
 }
 
-type HighLevelRelationish = RelRelationish | RelRestriction | RelProjection | RelRename | RelOperation
+export type HighLevelRelationish = RelRelationish | RelRestriction | RelProjection | RelRename | RelOperation
 
 export class RelRestriction {
   static readonly type = REL_RESTRICTION_TYPE
