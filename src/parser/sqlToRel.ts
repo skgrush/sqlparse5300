@@ -78,10 +78,16 @@ function fromColumn(arg: types.SqlColumn,
         }
         return col
       }
+      console.info(`Searching for ${arg.target}`)
       for (const [kee, val] of relations.entries()) {
-        if (!catalog.relations.has(kee))
+        if (!catalog.relations.has(kee)) {
+          console.info(`${kee} not in catalog`)
           continue
-        else if ((catalog.relations.get(kee) as types.Relation).columns.has(arg.target)) {
+        }
+        const tmpRel = (catalog.relations.get(kee) as types.Relation)
+        console.info(`${kee} in catalog, looking for my col`)
+        if (tmpRel.columns.has(arg.target)) {
+          console.info(`found`)
           relat = relations.get(kee)
           break
         }
@@ -262,6 +268,7 @@ function fromConditional(arg: types.SqlConditional,
     case '<':
     case '>':
       op = arg.operation
+      break
     case '<>':
     case '!=':
       op = 'neq'
@@ -314,6 +321,7 @@ export function fromSelectPair(selPair: SelectPairType, catalog: types.Catalog) 
     rhs = fromSelectPair(right as SelectPairType, catalog)
 
   const operation = new types.RelOperation(op, lhs, rhs)
+  return operation
 }
 
 export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {

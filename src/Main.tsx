@@ -54,7 +54,12 @@ export default class Main extends React.Component<any, MainState> {
   }
 
   parseQuery(): void {
-    this.setState({status: "Parsing relations"})
+    this.setState({
+      status: "Parsing relations",
+      queryJSON: null,
+      relJSON: null,
+      debug: ""
+    })
     const relatTracer = new Tracer(this.state.relationsInputText, {
       useColor: false,
       showTrace: true

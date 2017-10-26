@@ -23,4 +23,6 @@ export function sqlToRelationalAlgebra(sqlStatements, catalog: types.Catalog) {
     return fromSqlSelect(TLStatement, catalog)
   else if (Array.isArray(TLStatement) && TLStatement.length === 4)
     return fromSelectPair(TLStatement as any, catalog)
+  else
+    throw new Error(`Unknown sqlToRelationalAlgebra arg ${TLStatement}`)
 }

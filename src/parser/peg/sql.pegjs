@@ -78,8 +78,8 @@ Statements
 
 Statement
   = stmt:(
-      Select
-      / SelectPair
+      SelectPair
+      / Select
     )
     { return stmt }
 
