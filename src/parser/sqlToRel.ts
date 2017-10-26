@@ -325,10 +325,10 @@ export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
   const fromClause = fromRelationList(select.from, relations, columns, catalog)
 
   let targetColumns
-  if (select.what.target === '*')
+  if (select.what.targetlist === '*')
     targetColumns = '*'
   else {
-    targetColumns = fromTargetList(select.what.target, relations, columns, catalog)
+    targetColumns = fromTargetList(select.what.targetlist, relations, columns, catalog)
   }
 
   const whereClause = select.where

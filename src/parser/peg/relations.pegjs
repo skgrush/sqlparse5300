@@ -1,6 +1,7 @@
 
 start
-  = Relations
+  = _ rel:Relations _
+  { return rel }
 
 Relations
   = lhs:Relation

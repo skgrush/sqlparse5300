@@ -78,7 +78,7 @@ type TargetList = SqlColumn[]
 export interface TargetClause {
   type: "targetclause"
   spec: "distinct" | "all" | null
-  target: "*" | TargetList
+  targetlist: "*" | TargetList
 }
 
 export class SqlLiteral {
@@ -276,7 +276,7 @@ export class RelConditional {
   }
 }
 
-type HighLevelRelationish = RelRelationish | RelRestriction | RelProjection | RelRename
+type HighLevelRelationish = RelRelationish | RelRestriction | RelProjection | RelRename | RelOperation
 
 export class RelRestriction {
   static readonly type = REL_RESTRICTION_TYPE

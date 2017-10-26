@@ -25,6 +25,8 @@ export default class QueryInput extends React.Component<QueryInputProps, any> {
           <textarea
             id="query-input"
             placeholder="Query..."
+            cols={80}
+            rows={10}
             ref={(input: HTMLTextAreaElement) => {this.textInput = input}}
           />
           <button type="submit">Parse</button>

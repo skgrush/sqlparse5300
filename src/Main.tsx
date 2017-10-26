@@ -14,29 +14,31 @@ import Tests from './components/Tests'
 export interface MainState {
   relationsInputText: string
   queryInputText: string
-}
-
-export default class Main extends React.Component<any, MainState> {
   status: string
   queryJSON: any
   relJSON: any
   catalog: Catalog | null
+  debug: string
+}
+
+export default class Main extends React.Component<any, MainState> {
 
   constructor(props: any) {
     super(props)
     this.state = {
       relationsInputText: "",
-      queryInputText: ""
+      queryInputText: "",
+      status: "",
+      catalog: null,
+      queryJSON: null,
+      relJSON: null,
+      debug: ""
     }
 
     this.onRelationsInputUpdate = this.onRelationsInputUpdate.bind(this)
     this.onQueryInputUpdate = this.onQueryInputUpdate.bind(this)
     this.parseQuery = this.parseQuery.bind(this)
 
-    this.status = ""
-    this.catalog = null
-    this.queryJSON = null
-    this.relJSON = null
   }
 
   onRelationsInputUpdate(text: string): void {
@@ -50,45 +52,65 @@ export default class Main extends React.Component<any, MainState> {
   }
 
   parseQuery(): void {
-    this.status = "Parsing relations"
+    this.setState({status: "Parsing relations"})
     const relatTracer = new Tracer(this.state.relationsInputText, {
       useColor: false,
       showTrace: true
     })
+    let queryJSON
+    let relJSON
+    let catalog
     try {
-      this.catalog = parseRelations(this.state.relationsInputText, {tracer: relatTracer})
+      catalog = parseRelations(this.state.relationsInputText, {tracer: relatTracer})
+      this.setState({
+        catalog,
+        status: "Parsed relations"
+      })
     } catch (ex) {
-      this.status = `Parsing Relations:  ${ex.message}`
-      this.relJSON = this.queryJSON = this.catalog = null
+      this.setState({
+        status: `Parsing Relations:  ${ex.message}`,
+        relJSON: null,
+        queryJSON: null,
+        catalog: null,
+        debug: relatTracer.getParseTreeString()
+      })
       console.error("ERR1", ex)
-      // console.info(relatTracer.getParseTreeString())
       return
     }
 
-    this.status = "Parsing query"
+    this.setState({status: "Parsing query"})
     const queryTracer = new Tracer(this.state.queryInputText, {
       useColor: false,
       showTrace: true
     })
     try {
-      this.queryJSON = parseSql(this.state.queryInputText, {tracer: queryTracer})
-      this.status = "Query parsed"
-      console.log(this.queryJSON)
+      queryJSON = parseSql(this.state.queryInputText, {tracer: queryTracer})
+      this.setState({
+        queryJSON,
+        status: "Query parsed"
+      })
     } catch (ex) {
       const err: SyntaxError = ex
-      this.status = `Parsing query:  ${err.message}`
-      this.relJSON = this.queryJSON = this.catalog = null
+      this.setState({
+        status: `Parsing query:  ${err.message}`,
+        debug: queryTracer.getParseTreeString()
+      })
       console.error("ERR2", err)
       return
     }
 
-    this.status = "Generating relational algebra"
+    this.setState({status: "Generating relational algebra"})
     try {
-      this.relJSON = sqlToRelationalAlgebra(this.queryJSON, this.catalog)
+      relJSON = sqlToRelationalAlgebra(queryJSON, catalog as any)
+      this.setState({
+        relJSON,
+        status: "Generated relational algebra"
+      })
     } catch (ex) {
       console.error("ERR3", ex)
-      this.status = ex.message
-      this.relJSON = this.queryJSON = this.catalog = null
+      this.setState({
+        status: ex.message,
+      })
       return
     }
   }
@@ -98,9 +120,17 @@ export default class Main extends React.Component<any, MainState> {
       <main id="main">
         <RelationsInput onUpdate={this.onRelationsInputUpdate} />
         <QueryInput onUpdate={this.onQueryInputUpdate} />
-        <div id="parse-status">{this.status}</div>
+        <div id="parse-status">{this.state.status}</div>
+        <h3>SQL</h3>
         <div id="query-output-test">
-          <JSONPretty json={this.queryJSON} />
+          <JSONPretty json={this.state.queryJSON} />
+        </div>
+        <h3>Relational</h3>
+        <div id="rel-output">
+          <JSONPretty json={this.state.relJSON} />
+        </div>
+        <div id="debug-output">
+          <pre><code>{this.state.debug}</code></pre>
         </div>
         <Tests />
       </main>
