@@ -1,0 +1,29 @@
+In order to parse SQL commands, we are using a parsing library called pegjs.
+It allows us to express SQL as a Parsing Expression Grammar (PEG)
+and generate output that can be used to create a query tree.
+The syntax is based on PostgreSql and the grammar has initial inspiration from
+Phoenix along with PostgreSql.
+
+Parsing starts out with the Statements rule, which is a semicolon
+delimited list of SQL statements. A statement can be either a Select or SelectPair.
+Select is broken up into 6 clauses: Target, From, Where, GroupBy, Having and OrderBy.
+These correspond to all the possibilities of a valid SQL Select statement.
+A SelectPair is two seperate Select Statements paired together with a set
+operation: union, intersect or except. You can also apply the ALL or DISTINCT
+modifier to the pair.
+
+The TargetClause can have the optional DISTINCT or ALL modifier
+followed by a list of items (or a * to allow everything). The FromClause
+is a list of relations separated by commas. The relations can optionally be
+renamed via AS. It could also be a JOIN which is relations with a join type specified.
+The join can also use the ON keyword to specify further how to join tuples.
+The where and having clause are lists of conditions. The types of conditions are
+comparison, in, exists, like, between and null. Multiple conditions can be expressed
+with AND or OR. The GroupBy clause is simply a target list like the target clause.
+OrderBy allows you to specify columns by which to order your tuples, either in
+ascending or descending order.
+
+These grammar rules are the core of the parser. There are several other specifying
+the specific conditions, keywords, aggregate operators and so on and they can be
+used in appropriate places. As the parser identifies these statements, it produces
+a query tree. This query tree can easily be stored and manipulated later.
