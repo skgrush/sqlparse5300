@@ -21,7 +21,7 @@
   }
 
 
-  function makeColumn(relation: any, target: any, alias: string|null = null) {
+  function makeColumn(relation: string | null, target: SqlOperandType, alias: string|null = null) {
     if (target instanceof SqlColumn && !(target.relation && relation)) {
       if (relation)
         target.relation = relation
@@ -53,17 +53,17 @@
   }
 
 
-  function makeConditional(operation: string, lhs: any, rhs: any = null, not: boolean = false) {
+  function makeConditional(operation: SqlConditionalOp, lhs: any, rhs: any = null, not: boolean = false) {
     return new SqlConditional(operation, lhs, rhs, not)
   }
 
 
-  function makeAggFunction(fname: string, expr: string) {
+  function makeAggFunction(fname: AggFuncName, expr: string) {
     return new SqlAggFunction(fname, expr)
   }
 
 
-  function makeOperation(op: string, lhs: any, rhs: any) {
+  function makeOperation(op: SqlOperationOps, lhs: any, rhs: any) {
     return new SqlOperation(op, lhs, rhs)
   }
 
@@ -88,7 +88,7 @@ SelectPair
     pairing:( "UNION"i / "INTERSECT"i / "EXCEPT"i ) __
     spec:( "ALL"i __ / "DISTINCT"i __ )?
     rhs:( Select / SelectPair )
-  { return [lhs, 'union', spec && spec[0], rhs] }
+  { return [lhs, pairing.toLowerCase(), spec && spec[0].toLowerCase(), rhs] }
 
 Select
   = "SELECT"i __ what:TargetClause __
@@ -391,7 +391,7 @@ DQStringLiteral "double-quote string"
 SQStringLiteral "single-quote string"
   = lit:$( "'" ( [^'] / "''" )* "'" !SQStringLiteral )
   { return new SqlLiteral('string', lit.slice(1, -1)) }
-  / lit:$( ("‘"|"’") ( [^’] )* "’" ) // fancy single-quote
+  / lit:$( ("‘"/"’") ( [^’] )* "’" ) // fancy single-quote
   { return new SqlLiteral('string', lit.slice(1, -1)) }
 
 ExponentialLiteral "exponential"

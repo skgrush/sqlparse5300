@@ -1,5 +1,5 @@
 {
   "tspegjs": {
-    "customHeader": "import { COLUMN_TYPE, JOIN_TYPE, RELATION_TYPE, CONDITIONAL_TYPE, AGGFUNCTION_TYPE, OPERATION_TYPE, SELECTCLAUSE_TYPE, TARGETCLAUSE_TYPE, REL_RESTRICTION_TYPE, REL_PROJECTION_TYPE, REL_RENAME_TYPE, JOINSTRING, SqlLiteral, SqlSelect, SqlColumn, SqlJoin, SqlRelation, SqlConditional, SqlAggFunction, SqlOperation } from '../types'"
+    "customHeader": "import { COLUMN_TYPE, JOIN_TYPE, RELATION_TYPE, CONDITIONAL_TYPE, AGGFUNCTION_TYPE, OPERATION_TYPE, SELECTCLAUSE_TYPE, TARGETCLAUSE_TYPE, REL_RESTRICTION_TYPE, REL_PROJECTION_TYPE, REL_RENAME_TYPE, JOINSTRING, SqlLiteral, SqlSelect, SqlOperandType, SqlColumn, SqlJoin, SqlRelation, SqlConditionalOp, SqlConditional, AggFuncName, SqlAggFunction, SqlOperationOps, SqlOperation } from '../types'"
   }
 }

@@ -224,11 +224,13 @@ export type RelOperandType = RelOperation | string | RelColumn
 
 export class RelOperation {
   static readonly type = REL_OPERATION_TYPE
-  op: SqlOperationOps
-  lhs: RelOperandType
-  rhs: RelOperandType
+  op: SqlOperationOps | 'union' | 'intersect' | 'except'
+  lhs: RelOperandType | HighLevelRelationish
+  rhs: RelOperandType | HighLevelRelationish
 
-  constructor(op: SqlOperationOps, lhs: RelOperandType, rhs: RelOperandType) {
+  constructor(op: SqlOperationOps | 'union' | 'intersect' | 'except',
+              lhs: RelOperandType | HighLevelRelationish,
+              rhs: RelOperandType | HighLevelRelationish) {
     this.op = op
     this.lhs = lhs
     this.rhs = rhs

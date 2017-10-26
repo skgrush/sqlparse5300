@@ -298,7 +298,25 @@ function fromOrderings(orderings, rels, cols, cata) {
   })
 }
 
-function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
+type SelectPairType = [ types.SqlSelect,
+                        'union' | 'intersect' | 'except',
+                        'all' | 'distinct' | null,
+                        types.SqlSelect | [any, string, string, any]
+                      ]
+
+export function fromSelectPair(selPair: SelectPairType, catalog: types.Catalog) {
+  const [left, op, spec, right] = selPair
+  const lhs = fromSqlSelect(left, catalog)
+  let rhs
+  if (right instanceof types.SqlSelect)
+    rhs = fromSqlSelect(right, catalog)
+  else
+    rhs = fromSelectPair(right as SelectPairType, catalog)
+
+  const operation = new types.RelOperation(op, lhs, rhs)
+}
+
+export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
 
   // map names to the actual instances
   const relations = new Map()
