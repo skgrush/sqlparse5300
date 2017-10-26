@@ -20,88 +20,53 @@
     return lhs
   }
 
-  const COLUMN_TYPE = "column"
+
   function makeColumn(relation: any, target: any, alias: string|null = null) {
-    if (target.type === COLUMN_TYPE && !(target.relation && relation)) {
+    if (target instanceof SqlColumn && !(target.relation && relation)) {
       if (relation)
         target.relation = relation
       if (alias)
         target.alias = alias
       return target
     }
-    return {
-      "type": COLUMN_TYPE,
-      relation,
-      target,
-      alias
-    }
+    return new SqlColumn(relation, target, alias)
   }
 
-  const JOIN_TYPE = "join"
-  function makeJoin(lhs: any, rhs: any, joinType: string = 'join', condition: any = null) {
-    /* jointypes:
-        join: "," "JOIN" "CROSS JOIN"
-        equi: "INNER JOIN" "JOIN ... USING"
-        natural: "NATURAL JOIN"
-        leftouter: "LEFT [OUTER] JOIN"
-        rightouter: "RIGHT [OUTER] JOIN"
-        fullouter: "FULL [OUTER] JOIN"
-     */
-    return {
-      "type": JOIN_TYPE,
-      joinType,
-      condition,
-      lhs,
-      rhs
-    }
+
+  function makeJoin(lhs: any, rhs: any, joinType: JOINSTRING = 'join', condition: any = null) {
+    return new SqlJoin(lhs, rhs, joinType, condition)
   }
 
-  const RELATION_TYPE = "relation"
-  function makeRelation(target: any, alias: string|null = null) {
-    if (target.type === RELATION_TYPE) {
-      if (alias)
+
+  function makeRelation(target: SqlRelation | SqlJoin | string,
+                        alias: string|null = null)
+  {
+    if (target instanceof SqlRelation) {
+      if (alias) {
+        if (target.alias)
+          return new SqlRelation(target, alias)
         target.alias = alias
+      }
       return target
     }
-    return {
-      "type": RELATION_TYPE,
-      target,
-      alias
-    }
+    return new SqlRelation(target, alias)
   }
 
-  const CONDITIONAL_TYPE = "conditional"
+
   function makeConditional(operation: string, lhs: any, rhs: any = null, not: boolean = false) {
-    return {
-      "type": CONDITIONAL_TYPE,
-      operation,
-      lhs,
-      rhs,
-      not
-    }
+    return new SqlConditional(operation, lhs, rhs, not)
   }
 
-  const AGGFUNCTION_TYPE = "aggfunction"
+
   function makeAggFunction(fname: string, expr: string) {
-    return {
-      "type": AGGFUNCTION_TYPE,
-      fname,
-      expr
-    }
+    return new SqlAggFunction(fname, expr)
   }
 
-  const OPERATION_TYPE = "operation"
+
   function makeOperation(op: string, lhs: any, rhs: any) {
-    return {
-      "type": OPERATION_TYPE,
-      lhs,
-      op,
-      rhs
-    }
+    return new SqlOperation(op, lhs, rhs)
   }
 
-  const SELECTCLAUSE_TYPE = "selectclause"
-  const TARGETCLAUSE_TYPE = "targetclause"
 }
 
 start
@@ -132,15 +97,9 @@ Select
     groupBy:( __ "GROUP"i  __ "BY"i __ GroupByClause )?
     having:(  __ "HAVING"i __          HavingClause )?
     orderBy:( __ "ORDER"i  __ "BY"i __ OrderByClause )?
-  { return {
-      "type": SELECTCLAUSE_TYPE,
-      what,
-      from,
-      'where': where && where[3],
-      'groupBy': groupBy && groupBy[5],
-      'having': having && having[3],
-      'orderBy': orderBy && orderBy[5]
-    }
+  {
+    return new SqlSelect(what, from, where && where[3],groupBy && groupBy[5],
+                         having && having[3], orderBy && orderBy[5])
   }
 
 TargetClause
@@ -151,7 +110,7 @@ TargetClause
     )
   { return {
       'type': TARGETCLAUSE_TYPE,
-      'specifier': spec || null,
+      'specifier': spec ? spec.toLowerCase() : null,
       'targetlist': target
     }
   }
@@ -375,18 +334,18 @@ OperandList
       return lhs
   }
 
-Operand
+Operand // Summand | makeOperation
   = lhs:Summand
     rhs:( _ "||" _ Summand ) *
   { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation("||", lh, rh[3])) }
   / Select
 
-Summand
+Summand // Factor | makeOperation
   = lhs:Factor
     rhs:( _ ("+" / "-") _ Factor ) *
   { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation(rh[1], lh, rh[3])) }
 
-Factor
+Factor // literal | function | Operand | column | makeOperation
   = lhs:Term
     rhs:( _ ("*" / "/") _ Term ) *
   { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation(rh[1], lh, rh[3])) }
@@ -419,6 +378,7 @@ JoinType "JoinType"
 Literal "Literal"
   = SQStringLiteral
     / NumericLiteral
+    / ExponentialLiteral
     / BooleanLiteral
     / NullLiteral
 
@@ -429,11 +389,14 @@ DQStringLiteral "double-quote string"
   = $( '"' ( [^"] / '""' )+ '"' )
 
 SQStringLiteral "single-quote string"
-  = $( "'" ( [^'] / "''" )* "'" !SQStringLiteral )
+  = lit:$( "'" ( [^'] / "''" )* "'" !SQStringLiteral )
+  { return new SqlLiteral('string', lit.slice(1, -1)) }
+  / lit:$( ("‘"|"’") ( [^’] )* "’" ) // fancy single-quote
+  { return new SqlLiteral('string', lit.slice(1, -1)) }
 
 ExponentialLiteral "exponential"
   = val:$( NumericLiteral "e" IntegerLiteral )
-  { return parseFloat(val) }
+  { return new SqlLiteral('number', parseFloat(val)) }
 
 NumericLiteral "number"
   = IntegerLiteral
@@ -441,14 +404,15 @@ NumericLiteral "number"
 
 IntegerLiteral "integer"
   = int:$( "-"? [0-9]+ )
-  { return parseInt(int) }
+  { return new SqlLiteral('number', parseInt(int)) }
 
 DecimalLiteral "decimal"
   = value:$( "-"? [0-9]+ "." [0-9]+ )
-  { return parseFloat(value) }
+  { return new SqlLiteral('number', parseFloat(value)) }
 
 NullLiteral "null"
   = "NULL"i
+  { return new SqlLiteral('null', null) }
 
 BooleanLiteral "boolean"
   = TruePrim
@@ -456,9 +420,11 @@ BooleanLiteral "boolean"
 
 TruePrim
   = "TRUE"i
+  { return new SqlLiteral('boolean', true) }
 
 FalsePrim
   = "FALSE"i
+  { return new SqlLiteral('boolean', false) }
 
 _ "OptWhitespace"
   = WS* Comment? WS* {}
