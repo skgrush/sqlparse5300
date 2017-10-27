@@ -59,9 +59,19 @@ function fromJoin(arg: types.SqlJoin,
 function fromColumn(arg: types.SqlColumn,
                     relations: RelationLookup,
                     columns: ColumnLookup,
-                    catalog: types.Catalog): types.RelColumn | types.RelRename | types.RelFunction | string {
+                    catalog: types.Catalog
+  ): types.RelColumn | types.RelRename | types.RelFunction | string {
   const alias = arg.alias
-  if (typeof(arg.target) === 'string') {
+  if (arg.target instanceof types.SqlColumn) {
+    const target = fromColumn(arg.target, relations, columns, catalog) as
+                            types.RelColumn | types.RelRename
+    if (!alias)
+      return target
+    const ren = new types.RelRename(target, alias, target)
+    columns.set(alias, target as (types.RelColumn | types.RelFunction))
+    return target as (types.RelColumn | types.RelFunction)
+
+  } else if (typeof(arg.target) === 'string') {
     let relat
     if (arg.relation) {
       if (!relations.has(arg.relation)) {
@@ -230,8 +240,12 @@ function fromOperation(arg: types.SqlOperation,
 
 /* takes an Operand argument */
 function _condArgHelper(hs, rels, cols, cata) {
+  if (hs instanceof Array)
+    return fromTargetList(hs, rels, cols, cata)
   if (hs instanceof types.SqlConditional)
     return fromConditional(hs, rels, cols, cata)
+  else if (hs instanceof types.SqlSelect)
+    return fromSqlSelect(hs, cata)
   // Operand
   else if (hs instanceof types.SqlLiteral)
     return fromLiteral(hs)

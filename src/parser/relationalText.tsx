@@ -84,7 +84,12 @@ export function htmlRelRestriction(res: types.RelRestriction) {
 
 export function htmlRelProjection(res: types.RelProjection) {
   const SYM = getSymbol('projection')
-  const COLUMNS = res.columns.map(htmlRelColumn)
+  const COLUMNS: Array<string|HTMLSpanElement> = []
+  res.columns.forEach((col, idx) => {
+    if (idx > 0)
+      COLUMNS.push(",")
+    COLUMNS.push(htmlRelColumn(col, idx))
+  })
   const ARGS = htmlHLR(res.args)
   return (
     <span className="RelProjection">
@@ -248,7 +253,10 @@ export function htmlRelConditional(cond: types.RelConditional) {
           : htmlRelOperand(cond.lhs)
   const RHS = cond.rhs instanceof types.RelConditional
           ? htmlRelConditional(cond.rhs)
-          : htmlRelOperand(cond.rhs)
+          : ( cond.rhs instanceof Array
+              ? cond.rhs.map(htmlRelOperand)
+              : htmlRelOperand(cond.rhs)
+            )
 
   return (
     <span className="RelConditional">

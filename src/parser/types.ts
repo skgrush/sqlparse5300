@@ -20,6 +20,16 @@ export const REL_JOIN_TYPE        = "reljoin"
 export const REL_FUNCTION_TYPE    = "relfunt"
 export const REL_OPERATION_TYPE   = "relop"
 
+/**
+ * IFF rhs is non-empty, run reduce using f on rhs initialized by lhs.
+ * Else return lhs
+ */
+export function reduceIfRHS(lhs: any, rhs: any[], f: (L, R) => any) {
+  if (rhs.length)
+    return rhs.reduce(f, lhs)
+  return lhs
+}
+
 export class Catalog {
 
   static fromParse(relations: Array<[string, Array<[string, string]>]>) {
@@ -166,8 +176,8 @@ export class SqlRelation {
   }
 }
 
-export type SqlConditionalOp = 'or' | 'and' | 'not' | 'in' | 'exists' |
-                               'like' | 'between' | 'isnull' | '<>' |
+export type SqlConditionalOp = 'or' | 'and' | 'not' | 'in' | 'exists' | 'like' |
+                               'between' | 'isnull' | '<>' | 'contains' |
                                '<=' | '>=' | '=' | '<' | '>' | '!='
 
 export class SqlConditional {
@@ -266,10 +276,10 @@ export class RelConditional {
   static readonly type = REL_CONDITIONAL_TYPE
   operation: ThetaOp
   lhs: RelOperandType | RelConditional
-  rhs: RelOperandType | RelConditional
+  rhs: RelOperandType | RelConditional | RelOperandType[]
 
   constructor(op: ThetaOp, lhs: RelOperandType | RelConditional,
-              rhs: RelOperandType | RelConditional) {
+              rhs: RelOperandType | RelConditional | RelOperandType[]) {
     this.operation = op
     this.lhs = lhs
     this.rhs = rhs
@@ -304,11 +314,14 @@ export class RelRename {
   static readonly type = REL_RENAME_TYPE
   input: RelRelation | RelColumn | RelFunction | string
   output: string
-  args: RelRelationish | null
+  args: HighLevelRelationish | null
 
-  constructor(input: RelRelation | RelColumn | RelFunction | string,
+  constructor(input: RelRelation | RelColumn | RelFunction | string | RelRename,
               output: string,
-              args: RelRelationish | null) {
+              args: HighLevelRelationish | null) {
+    if (input instanceof RelRename) {
+      input = input.input
+    }
     this.input = input
     this.output = output
     this.args = args
