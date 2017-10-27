@@ -139,10 +139,11 @@ SELECT    Sname
 FROM      Sailors
 WHERE     Sailor.sid IN (SELECT   Reserves.bid, Reserves.sid
                          FROM     Reserves
-                         CONTAINS
-                                  (SLECT Boats.bid
-                                   FROM  Boats
-                                   WHERE Boats.name  =  ‘interlake’) )`,
+                         WHERE    EXISTS (
+                                  SLECT Boats.bid
+                                  FROM  Boats
+                                  WHERE Boats.name  =  ‘interlake’
+                                        AND Boats.bid = Reserves.bid ) )`,
 
 `-- Query 2m
 -- Invalid TargetList

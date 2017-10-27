@@ -33,6 +33,11 @@
     "build-relations-parser": "pegjs --plugin ./node_modules/ts-pegjs/src/tspegjs --extra-options-file src/parser/peg/pegconfig.json -o src/parser/peg/relations.ts src/parser/peg/relations.pegjs",
     "build-parsers": "yarn run build-sql-parser && yarn run build-relations-parser",
     "build-webpack": "webpack",
-    "build": "yarn run build-parsers && yarn run build-webpack"
+    "build": "yarn run build-parsers && yarn run build-webpack",
+
+    "build-sql-parser-trace": "pegjs --trace --plugin ./node_modules/ts-pegjs/src/tspegjs --extra-options-file src/parser/peg/pegconfig.json -o src/parser/peg/sql.ts src/parser/peg/sql.pegjs",
+    "build-relations-parser-trace": "pegjs --trace --plugin ./node_modules/ts-pegjs/src/tspegjs --extra-options-file src/parser/peg/pegconfig.json -o src/parser/peg/relations.ts src/parser/peg/relations.pegjs",
+    "build-parsers-trace": "yarn run build-sql-parser-trace && yarn run build-relations-parser-trace",
+    "build-trace": "yarn run build-parsers-trace && yarn run build-webpack"
   }
 }
