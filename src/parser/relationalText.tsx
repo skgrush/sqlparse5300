@@ -148,10 +148,6 @@ export function getName(thing) {
 }
 
 export function htmlRelRename(ren: types.RelRename) {
-  console.group()
-  console.info("htmlRelRename")
-  console.info(ren)
-  console.groupEnd()
   const SYM = getSymbol('rename')
   const INPUT = getName(ren.input)
   const OUTPUT = ren.output

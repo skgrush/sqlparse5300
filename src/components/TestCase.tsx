@@ -1,12 +1,15 @@
 import * as React from "react"
-
 import * as JSONPretty from 'react-json-pretty'
+const Tracer = require('pegjs-backtrace')
 
 import {Catalog} from '../parser/types'
 import {parseSql, SqlSyntaxError, sqlToRelationalAlgebra} from '../parser/parsing'
 import {htmlHLR} from '../parser/relationalText'
 
-const Tracer = require('pegjs-backtrace')
+import {Projection} from '../query_tree/operation'
+import Node from '../query_tree/node'
+import parseSQLToTree from '../query_tree/parse'
+import Tree from '../components/tree'
 
 interface TestCaseProps {
   catalog: Catalog | null
@@ -20,6 +23,7 @@ interface TestCaseState {
   status: string
   queryJSON: any
   relAlJSON: any
+  root: Node | null
   relAlHTML: JSX.Element | null
   color: string
   debug: any
@@ -59,6 +63,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       queryJSON: null,
       relAlJSON: null,
       relAlHTML: null,
+      root: null,
       color: 'currentcolor',
       debug: ''
     }
@@ -77,6 +82,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
     let queryJSON = null
     let relAlJSON = null
     let relAlHTML = null
+    let root: Node | null = null
     let color = 'currentcolor'
     let debug = ''
 
@@ -112,9 +118,25 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
         status = `HTML Conversion Error: ${ex}`
         color = "red"
       }
+      try {
+        root = parseSQLToTree(/*relAlJSON*/queryJSON)
+        status = "Tree Generated"
+        color = "green"
+      } catch (ex) {
+        status = `Tree Error: ${ex}`
+        color = "red"
+      }
     }
 
-    this.setState({ status, queryJSON, relAlJSON, relAlHTML, color, debug })
+    this.setState({
+      status,
+      queryJSON,
+      relAlJSON,
+      relAlHTML,
+      root,
+      color,
+      debug
+     })
   }
 
   render() {
@@ -138,6 +160,12 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
           <div className="relal-json" data-empty={!this.state.relAlJSON}>
             <h4>Relational Algebra Structure</h4>
             <JSONPretty json={this.state.relAlJSON} />
+          </div>
+          <div className="tree" data-empty={!this.state.root}>
+            <h4>Tree</h4>
+            { this.state.root &&
+                <Tree root={this.state.root} margin={10} />
+            }
           </div>
           <div className="traceback" data-empty={!this.state.debug}>
             <h4>Error Traceback</h4>

@@ -63,7 +63,7 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
               this.state.queryNames.map((qName, idx) => {
                 const anchor = `#q${idx}`
                 return (
-                  <li>
+                  <li key={anchor}>
                     <a href={anchor}>{qName || anchor}</a>
                   </li>
                 )

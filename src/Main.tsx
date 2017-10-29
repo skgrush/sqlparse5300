@@ -5,17 +5,11 @@ import * as JSONPretty from 'react-json-pretty'
 const Tracer = require('pegjs-backtrace')
 
 import {Catalog} from 'parser/types'
-import {parseSql, sqlToRelationalAlgebra, SqlSyntaxError} from './parser/parsing'
 
 import RelationsInput, {RelationsInputOutput} from './components/RelationsInput'
 import QueryInput from './components/QueryInput'
 import Tests from './components/Tests'
-
-import {Projection} from './query_tree/operation'
-import Node from './query_tree/node'
-import parseSQLToTree from './query_tree/parse'
-import Tree from './components/tree'
-import {htmlHLR} from './parser/relationalText'
+import TestCase from './components/TestCase'
 
 export interface MainState {
   queryInputText: string
@@ -23,8 +17,8 @@ export interface MainState {
   queryJSON: any
   relJSON: any
   catalog: Catalog | null
+
   debug: string
-  root: Node | null
 }
 
 export default class Main extends React.Component<any, MainState> {
@@ -37,13 +31,11 @@ export default class Main extends React.Component<any, MainState> {
       catalog: null,
       queryJSON: null,
       relJSON: null,
-      debug: "",
-      root: null
+      debug: ""
     }
 
     this.onRelationsInputUpdate = this.onRelationsInputUpdate.bind(this)
     this.onQueryInputUpdate = this.onQueryInputUpdate.bind(this)
-    this.parseQuery = this.parseQuery.bind(this)
 
   }
 
@@ -70,12 +62,11 @@ export default class Main extends React.Component<any, MainState> {
       queryJSON: null,
       relJSON: null,
       debug: ""
-    },
-      () => this.parseQuery())
+    })
 
   }
 
-  parseQuery(): void {
+  /*parseQuery(): void {
     const {queryInputText, catalog} = this.state
 
     let queryJSON
@@ -114,7 +105,7 @@ export default class Main extends React.Component<any, MainState> {
       })
       throw ex
     }
-  }
+  }*/
 
   render() {
     return (
@@ -125,27 +116,20 @@ export default class Main extends React.Component<any, MainState> {
           disabled={!this.state.catalog}
         />
         <div id="parse-status">{this.state.status}</div>
-        <div id="tree">
-          { this.state.root ? <Tree root={this.state.root} margin={10} /> : null}
+        <div id="main-output">
+          <TestCase
+            catalog={this.state.catalog}
+            queryInputText={this.state.queryInputText}
+            doRun={true} // bad idea??
+            anchor="main-test"
+            name="Main Test"
+          />
+          <div id="debug-output" data-empty={!this.state.debug}>
+            <pre><code>{this.state.debug}</code></pre>
+          </div>
         </div>
-        <h3>SQL</h3>
-        <div id="query-output-test">
-          <JSONPretty json={this.state.queryJSON} />
-        </div>
-        <h3>Relational JSON</h3>
-        <div id="rel-output">
-          <JSONPretty json={this.state.relJSON} />
-        </div>
-        <h3>Relational HTML</h3>
-        <div id="rel-html">
-          {
-            this.state.relJSON &&
-            htmlHLR(this.state.relJSON)
-          }
-        </div>
-        <div id="debug-output">
-          <pre><code>{this.state.debug}</code></pre>
-        </div>
+        <hr />
+        <hr />
         <Tests catalog={this.state.catalog} />
       </main>
     )

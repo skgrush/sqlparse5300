@@ -1,3 +1,4 @@
+// tslint:disable
 import Node from './node'
 import {Operation, Projection, From, Where} from './operation'
 
