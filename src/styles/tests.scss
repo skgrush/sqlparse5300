@@ -1,0 +1,31 @@
+
+main#main {
+  & > #tests-div {
+    & > #tests-nav {
+
+    }
+    & > #tests-list {
+      & > .testcase {
+        & > .testcase-inner {
+          display: flex;
+          flex-flow: row wrap;
+
+          & > [data-empty="true"] {
+            display: none;
+          }
+
+          & > .testcase-relal-html {
+            flex: 2 2 100%;
+          }
+          & > .sql-json,
+          & > .relal-json {
+            flex: 2 50%;
+          }
+          & > .testcase-traceback {
+            flex: 2 0 100%;
+          }
+        }
+      }
+    }
+  }
+}

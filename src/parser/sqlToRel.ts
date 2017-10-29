@@ -59,9 +59,19 @@ function fromJoin(arg: types.SqlJoin,
 function fromColumn(arg: types.SqlColumn,
                     relations: RelationLookup,
                     columns: ColumnLookup,
-                    catalog: types.Catalog): types.RelColumn | types.RelRename | types.RelFunction | string {
+                    catalog: types.Catalog
+  ): types.RelColumn | types.RelRename | types.RelFunction | string {
   const alias = arg.alias
-  if (typeof(arg.target) === 'string') {
+  if (arg.target instanceof types.SqlColumn) {
+    const target = fromColumn(arg.target, relations, columns, catalog) as
+                            types.RelColumn | types.RelRename
+    if (!alias)
+      return target
+    const ren = new types.RelRename(target, alias, target)
+    columns.set(alias, target as (types.RelColumn | types.RelFunction))
+    return target as (types.RelColumn | types.RelFunction)
+
+  } else if (typeof(arg.target) === 'string') {
     let relat
     if (arg.relation) {
       if (!relations.has(arg.relation)) {
@@ -78,10 +88,16 @@ function fromColumn(arg: types.SqlColumn,
         }
         return col
       }
+      console.info(`Searching for ${arg.target}`)
       for (const [kee, val] of relations.entries()) {
-        if (!catalog.relations.has(kee))
+        if (!catalog.relations.has(kee)) {
+          console.info(`${kee} not in catalog`)
           continue
-        else if ((catalog.relations.get(kee) as types.Relation).columns.has(arg.target)) {
+        }
+        const tmpRel = (catalog.relations.get(kee) as types.Relation)
+        console.info(`${kee} in catalog, looking for my col`)
+        if (tmpRel.columns.has(arg.target)) {
+          console.info(`found`)
           relat = relations.get(kee)
           break
         }
@@ -224,8 +240,12 @@ function fromOperation(arg: types.SqlOperation,
 
 /* takes an Operand argument */
 function _condArgHelper(hs, rels, cols, cata) {
+  if (hs instanceof Array)
+    return fromTargetList(hs, rels, cols, cata)
   if (hs instanceof types.SqlConditional)
     return fromConditional(hs, rels, cols, cata)
+  else if (hs instanceof types.SqlSelect)
+    return fromSqlSelect(hs, cata)
   // Operand
   else if (hs instanceof types.SqlLiteral)
     return fromLiteral(hs)
@@ -262,6 +282,7 @@ function fromConditional(arg: types.SqlConditional,
     case '<':
     case '>':
       op = arg.operation
+      break
     case '<>':
     case '!=':
       op = 'neq'
@@ -314,6 +335,7 @@ export function fromSelectPair(selPair: SelectPairType, catalog: types.Catalog) 
     rhs = fromSelectPair(right as SelectPairType, catalog)
 
   const operation = new types.RelOperation(op, lhs, rhs)
+  return operation
 }
 
 export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
