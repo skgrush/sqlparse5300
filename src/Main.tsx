@@ -11,6 +11,11 @@ import QueryInput from './components/QueryInput'
 import RelationsInput from './components/RelationsInput'
 import Tests from './components/Tests'
 
+import {Projection} from './query_tree/operation'
+import Node from './query_tree/node'
+import parseSQLToTree from './query_tree/parse'
+import Tree from './components/tree'
+
 export interface MainState {
   relationsInputText: string
   queryInputText: string
@@ -19,6 +24,7 @@ export interface MainState {
   relJSON: any
   catalog: Catalog | null
   debug: string
+  root: Node | null
 }
 
 export default class Main extends React.Component<any, MainState> {
@@ -32,7 +38,8 @@ export default class Main extends React.Component<any, MainState> {
       catalog: null,
       queryJSON: null,
       relJSON: null,
-      debug: ""
+      debug: "",
+      root: null
     }
 
     this.onRelationsInputUpdate = this.onRelationsInputUpdate.bind(this)
@@ -85,8 +92,11 @@ export default class Main extends React.Component<any, MainState> {
     })
     try {
       queryJSON = parseSql(this.state.queryInputText, {tracer: queryTracer})
+      let root = parseSQLToTree(queryJSON)
+      console.log(root)
       this.setState({
         queryJSON,
+        root,
         status: "Query parsed"
       })
     } catch (ex) {
@@ -121,6 +131,9 @@ export default class Main extends React.Component<any, MainState> {
         <RelationsInput onUpdate={this.onRelationsInputUpdate} />
         <QueryInput onUpdate={this.onQueryInputUpdate} />
         <div id="parse-status">{this.state.status}</div>
+        <div id="tree">
+          { this.state.root ? <Tree root={this.state.root} margin={10} /> : null}
+        </div>
         <h3>SQL</h3>
         <div id="query-output-test">
           <JSONPretty json={this.state.queryJSON} />
