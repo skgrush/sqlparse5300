@@ -1,6 +1,7 @@
 
 import { parse as RelationParse } from './peg/relations'
 import { parse as SqlParse } from './peg/sql'
+export { SyntaxError as SqlSyntaxError } from './peg/sql'
 import * as types from './types'
 import {fromSqlSelect, fromSelectPair} from './sqlToRel'
 
@@ -23,4 +24,6 @@ export function sqlToRelationalAlgebra(sqlStatements, catalog: types.Catalog) {
     return fromSqlSelect(TLStatement, catalog)
   else if (Array.isArray(TLStatement) && TLStatement.length === 4)
     return fromSelectPair(TLStatement as any, catalog)
+  else
+    throw new Error(`Unknown sqlToRelationalAlgebra arg ${TLStatement}`)
 }

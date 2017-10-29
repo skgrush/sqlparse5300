@@ -17,7 +17,7 @@ Relation
 
 Columns
   = lhs:Column rhs:( _ "," _ Column )*
-  { return rhs.reduce((l,r) => l.concat(r[1]), [lhs]) }
+  { return rhs.reduce((l,r) => l.concat([r[3]]), [lhs]) }
 
 Column
   = name:Name _ ":" _ typ:Ident

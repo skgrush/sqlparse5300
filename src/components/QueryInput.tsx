@@ -2,6 +2,7 @@ import * as React from "react"
 
 export interface QueryInputProps {
   onUpdate: (text: string) => void
+  disabled: boolean
 }
 
 export default class QueryInput extends React.Component<QueryInputProps, any> {
@@ -21,16 +22,17 @@ export default class QueryInput extends React.Component<QueryInputProps, any> {
   render() {
     return (
       <div id="query-input-wrapper">
-        <form onSubmit={this.onSubmit}>
-          <textarea
-            id="query-input"
-            placeholder="Query..."
-            cols={80}
-            rows={10}
-            ref={(input: HTMLTextAreaElement) => {this.textInput = input}}
-          />
-          <button type="submit">Parse</button>
-        </form>
+        <textarea
+          id="query-input"
+          placeholder="Query..."
+          cols={80}
+          rows={10}
+          ref={(input: HTMLTextAreaElement) => {this.textInput = input}}
+        />
+        <button
+          disabled={this.props.disabled}
+          onClick={this.onSubmit}
+        >Parse Query</button>
       </div>
     )
   }

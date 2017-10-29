@@ -1,21 +1,69 @@
 import * as React from "react"
 
+const Tracer = require('pegjs-backtrace')
+
+import {parseRelations} from '../parser/parsing'
+import {Catalog} from '../parser/types'
+
 const DEFAULT_INPUT = `
 Sailors(sid:integer, sname:string, rating:integer, age:real)
 Boats(bid:integer, bname:string, color:string)
 Reserves(sid:integer, bid:integer, day:date)
 `
 
-export interface RelationsInputProps {
-  onUpdate: (text: string) => void
+export interface RelationsInputOutput {
+  catalog: Catalog | null
+  error: null | Error
+  traceback: '' | string
 }
 
-export default class RelationsInput extends React.Component<RelationsInputProps, any> {
+export interface RelationsInputProps {
+  onUpdate: (output: RelationsInputOutput) => void
+}
 
-  componentDidMount() {
-    if (DEFAULT_INPUT) {
-      this.props.onUpdate(DEFAULT_INPUT)
+interface RelationsInputState {
+  catalog: Catalog | null
+  text: string
+}
+
+export default class RelationsInput extends React.Component<RelationsInputProps, RelationsInputState> {
+
+  constructor(props) {
+    super(props)
+    this.state = {
+      catalog: null,
+      text: DEFAULT_INPUT
     }
+
+    this.run = this.run.bind(this)
+    this.onChange = this.onChange.bind(this)
+  }
+
+  run(e?) {
+    const text = this.state.text
+    if (e) e.preventDefault()
+
+    const tracer = new Tracer(text, {
+      useColor: false,
+      showTrace: true
+    })
+
+    let catalog: Catalog|null = null
+    try {
+      catalog = parseRelations(text, {tracer})
+      this.props.onUpdate({ catalog, error: null, traceback: '' })
+    } catch (ex) {
+      this.props.onUpdate({
+        catalog,
+        error: ex,
+        traceback: tracer.getParseTreeString()
+      })
+    }
+    this.setState({catalog})
+  }
+
+  onChange(event) {
+    this.setState({text: event.target.value})
   }
 
   render() {
@@ -23,11 +71,12 @@ export default class RelationsInput extends React.Component<RelationsInputProps,
       <div id="relations-input-wrapper">
         <textarea
           id="relations-input"
-          defaultValue={DEFAULT_INPUT}
+          value={this.state.text}
           cols={80}
           rows={10}
-          onChange={(e) => this.props.onUpdate(e.target.value)}
+          onChange={this.onChange}
         />
+        <button onClick={this.run}>Parse Relations</button>
       </div>
     )
   }

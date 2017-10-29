@@ -1,73 +1,12 @@
 /*
-  Initially based on grammar of the "Phoenix" SQL layer
+  Initially inspired by grammar of the "Phoenix" SQL layer
     (https://forcedotcom.github.io/phoenix/index.html)
 
-  Revised based on PostgreSql grammar:
+  Primarily based on PostgreSql syntax:
     https://www.postgresql.org/docs/9/static/sql-syntax.html
     https://www.postgresql.org/docs/9/static/sql-select.html
     https://github.com/postgres/postgres/blob/master/src/backend/parser/gram.y
 */
-
-// initializer
-{
-  /**
-   * IFF rhs is non-empty, run reduce using f on rhs initialized by lhs.
-   * Else return lhs
-   */
-  function reduceIfRHS(lhs: any, rhs: any[], f: (L, R) => any) {
-    if (rhs.length)
-      return rhs.reduce(f, lhs)
-    return lhs
-  }
-
-
-  function makeColumn(relation: string | null, target: SqlOperandType, alias: string|null = null) {
-    if (target instanceof SqlColumn && !(target.relation && relation)) {
-      if (relation)
-        target.relation = relation
-      if (alias)
-        target.alias = alias
-      return target
-    }
-    return new SqlColumn(relation, target, alias)
-  }
-
-
-  function makeJoin(lhs: any, rhs: any, joinType: JOINSTRING = 'join', condition: any = null) {
-    return new SqlJoin(lhs, rhs, joinType, condition)
-  }
-
-
-  function makeRelation(target: SqlRelation | SqlJoin | string,
-                        alias: string|null = null)
-  {
-    if (target instanceof SqlRelation) {
-      if (alias) {
-        if (target.alias)
-          return new SqlRelation(target, alias)
-        target.alias = alias
-      }
-      return target
-    }
-    return new SqlRelation(target, alias)
-  }
-
-
-  function makeConditional(operation: SqlConditionalOp, lhs: any, rhs: any = null, not: boolean = false) {
-    return new SqlConditional(operation, lhs, rhs, not)
-  }
-
-
-  function makeAggFunction(fname: AggFuncName, expr: string) {
-    return new SqlAggFunction(fname, expr)
-  }
-
-
-  function makeOperation(op: SqlOperationOps, lhs: any, rhs: any) {
-    return new SqlOperation(op, lhs, rhs)
-  }
-
-}
 
 start
   = Statements
@@ -77,17 +16,19 @@ Statements
   { return rhs.reduce((result, element) => result.concat(element[3]), [lhs]) }
 
 Statement
-  = stmt:(
-      Select
-      / SelectPair
-    )
-    { return stmt }
+  = Selectish
+
+Selectish
+  = "(" _ sel:Selectish _ ")" { return sel }
+  / SelectPair
+  / Select
+
 
 SelectPair
   = lhs:Select __
     pairing:( "UNION"i / "INTERSECT"i / "EXCEPT"i ) __
     spec:( "ALL"i __ / "DISTINCT"i __ )?
-    rhs:( Select / SelectPair )
+    rhs:( Selectish )
   { return [lhs, pairing.toLowerCase(), spec && spec[0].toLowerCase(), rhs] }
 
 Select
@@ -141,13 +82,13 @@ Ordering
 
 RelationList
   = item1:RelationItem _ "," _ items:RelationList
-    { return makeJoin(item1, items) }
+    { return new SqlJoin(item1, items) }
     / Join
     / RelationItem
 
 RelationItem "RelationItem"
   = item:RelationThing __ ( "AS"i __ )? alias:Name
-  { return makeRelation(item, alias) }
+  { return new SqlRelation(item, alias) }
   / RelationThing
 
 RelationThing
@@ -156,7 +97,7 @@ RelationThing
   / "(" _ join:Join _ ")"
   { return join }
   / tableName:Name
-  { return makeRelation(tableName) }
+  { return new SqlRelation(tableName) }
 
 Join
   = item1:RelationItem __
@@ -170,7 +111,7 @@ Join
         "(" _ list:TargetList _ ")"
         { return ['using', list] }
     )?
-  { return makeJoin(item1, item2, jtype, jcond) }
+  { return new SqlJoin(item1, item2, jtype, jcond) }
 
 TargetList
   = item1:TargetItem _ "," _ items:TargetList
@@ -180,27 +121,27 @@ TargetList
 
 TargetItem "TargetItem"
   = table:Name ".*"
-  { return makeColumn(table, '*', null) }
+  { return new SqlColumn(table, '*', null) }
   / op:Operand __ "AS"i __ alias:Name
-  { return makeColumn(null, op, alias )}
+  { return new SqlColumn(null, op, alias )}
   / op:Operand __ alias:Name
-  { return makeColumn(null, op, alias )}
+  { return new SqlColumn(null, op, alias )}
   / op:Operand _ "=" _ alias:Name
-  { return makeColumn(null, op, alias) }
+  { return new SqlColumn(null, op, alias) }
   / op:Operand
-  { return makeColumn(null, op) }
+  { return new SqlColumn(null, op) }
 
 Condition "Condition"
   = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
-  { return rhs ? makeConditional('or', lhs, rhs[3]) : lhs }
+  { return rhs ? new SqlConditional('or', lhs, rhs[3]) : lhs }
 
 AndCondition
   = lhs:InnerCondition rhs:( __ "AND"i __ AndCondition )?
-  { return rhs ? makeConditional('and', lhs, rhs[3]) : lhs }
+  { return rhs ? new SqlConditional('and', lhs, rhs[3]) : lhs }
 
 InnerCondition
-  = (
-    ConditionComp
+  = ( ConditionContains
+    / ConditionComp
     / ConditionIn
     / ConditionExists
     / ConditionLike
@@ -209,13 +150,26 @@ InnerCondition
 //    / Operand
   )
   / "NOT"i __ expr:Condition
-  { return makeConditional('not', expr) }
+  { return new SqlConditional('not', expr) }
   / "(" _ expr:Condition _ ")"
   { return expr }
 
-ConditionComp
+ConditionContains "Conditional-Contains"
+  // based on Transact-SQL
+  = "CONTAINS" _
+    "(" _
+      lhs:(
+        Operand
+        / "(" _ ops:OperandList _ ")"
+        { return ops }
+      )
+      rhs:SQStringLiteral
+    ")"
+  { return new SqlConditional('contains', lhs, rhs) }
+
+ConditionComp "Conditional-Comparison"
   = lhs:Operand _ cmp:Compare _ rhs:Operand
-  { return makeConditional(cmp, lhs, rhs) }
+  { return new SqlConditional(cmp, lhs, rhs) }
 
 ConditionIn
   = lhs_op:Operand __
@@ -224,19 +178,19 @@ ConditionIn
     "(" _
       rhs_ops:( OperandList ) _
     ")"
-  { return makeConditional('in', lhs_op, rhs_ops, not) }
+  { return new SqlConditional('in', lhs_op, rhs_ops, not) }
 
 ConditionExists
   = "EXISTS"i _
-    "(" _ subquery:Select _ ")"
-  { return makeConditional('exists', subquery) }
+    "(" _ subquery:Selectish _ ")"
+  { return new SqlConditional('exists', subquery) }
 
 ConditionLike
   = lhs_op:Operand __
     not:( "NOT"i __ )?
     "LIKE"i __
     rhs_op:Operand
-  { return makeConditional('like', lhs_op, rhs_op, not) }
+  { return new SqlConditional('like', lhs_op, rhs_op, not) }
 
 ConditionBetween
   = lhs_op:Operand __
@@ -256,13 +210,13 @@ ConditionBetween
         ")"
         { return [rhs_op1, rhs_op2] }
     )
-  { return makeConditional('between', lhs_op, rhs, not) }
+  { return new SqlConditional('between', lhs_op, rhs, not) }
 
 ConditionNull
   = lhs:Operand __ "IS"i __
     not:( "NOT"i __ )?
     NullLiteral
-  { return makeConditional('isnull', lhs, null, not) }
+  { return new SqlConditional('isnull', lhs, null, not) }
 
 Term
   = Literal
@@ -272,7 +226,7 @@ Term
 
 ColumnRef
   = tbl:( table:Name "." )? column:Name
-    { return makeColumn(tbl && tbl[0], column) }
+    { return new SqlColumn(tbl && tbl[0], column) }
 
 AggFunction "aggregate function"
   = AggFunctionAvg
@@ -284,35 +238,35 @@ AggFunction "aggregate function"
 AggFunctionAvg
   = "AVG"i _
     "(" _ term:Term _ ")"
-  { return makeAggFunction("avg", term) }
+  { return new SqlAggFunction("avg", term) }
 
 AggFunctionCount
   = "COUNT"i _
     "(" _
       targ:TargetClause _
     ")"
-  { return makeAggFunction("count", targ) }
+  { return new SqlAggFunction("count", targ) }
 
 AggFunctionMax
   = "MAX"i _
     "(" _
       term:Term _
     ")"
-  { return makeAggFunction("max", term) }
+  { return new SqlAggFunction("max", term) }
 
 AggFunctionMin
   = "MIN"i _
     "(" _
       term:Term _
     ")"
-  { return makeAggFunction("min", term) }
+  { return new SqlAggFunction("min", term) }
 
 AggFunctionSum
   = "SUM"i _
     "(" _
       term:Term _
     ")"
-  { return makeAggFunction("sum", term) }
+  { return new SqlAggFunction("sum", term) }
 
 /***** PRIMITIVES *****/
 
@@ -337,18 +291,21 @@ OperandList
 Operand // Summand | makeOperation
   = lhs:Summand
     rhs:( _ "||" _ Summand ) *
-  { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation("||", lh, rh[3])) }
-  / Select
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation("||",
+                                                              lh, rh[3])) }
+  / _ Select _
 
 Summand // Factor | makeOperation
   = lhs:Factor
     rhs:( _ ("+" / "-") _ Factor ) *
-  { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation(rh[1], lh, rh[3])) }
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation(rh[1],
+                                                              lh, rh[3])) }
 
 Factor // literal | function | Operand | column | makeOperation
   = lhs:Term
     rhs:( _ ("*" / "/") _ Term ) *
-  { return reduceIfRHS(lhs, rhs, (lh, rh) => makeOperation(rh[1], lh, rh[3])) }
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation(rh[1],
+                                                              lh, rh[3])) }
 
 Compare
   = "<>"
@@ -427,11 +384,10 @@ FalsePrim
   { return new SqlLiteral('boolean', false) }
 
 _ "OptWhitespace"
-  = WS* Comment? WS* {}
+  = WS* (Comment WS*)* {}
 
 __ "ReqWhitespace"
-  = WS+ Comment? WS* {}
-    / WS* Comment? WS+ {}
+  = WS+ (Comment WS*)* {}
 
 WS
   = [ \t\n]
@@ -447,37 +403,83 @@ Comment "Comment"
       only "IN" is reachable.
  **/
 ReservedWord
-  = $("ABS"i / "ALL"i / "ALLOCATE"i / "ALTER"i / "AND"i / "ANY"i / "ARE"i / "ARRAY_AGG"i / "ARRAY"i / "ASENSITIVE"i / "ASYMMETRIC"i / "AS"i / "ATOMIC"i / "AT"i / "AUTHORIZATION"i / "AVG"i
-      / "BEGIN"i / "BETWEEN"i / "BIGINT"i / "BINARY"i / "BLOB"i / "BOOLEAN"i / "BOTH"i / "BY"i
-      / "CALLED"i / "CALL"i / "CARDINALITY"i / "CASCADED"i / "CASE"i / "CAST"i / "CEILING"i / "CEIL"i / "CHARACTER_LENGTH"i / "CHAR_LENGTH"i / "CHARACTER"i / "CHAR"i / "CHECK"i / "CLOB"i /
-        "CLOSE"i / "COALESCE"i / "COLLATE"i / "COLLECT"i / "COLUMN"i / "COMMIT"i / "CONDITION"i / "CONNECT"i / "CONSTRAINT"i / "CONVERT"i / "CORRESPONDING"i / "CORR"i / "COUNT"i / "COVAR_POP"i /
-        "COVAR_SAMP"i / "CREATE"i / "CROSS"i / "CUBE"i / "CUME_DIST"i / "CURRENT_CATALOG"i / "CURRENT_DATE"i / "CURRENT_DEFAULT_TRANSFORM_GROUP"i / "CURRENT_PATH"i / "CURRENT_ROLE"i /
-        "CURRENT_SCHEMA"i / "CURRENT_TIMESTAMP"i / "CURRENT_TIME"i / "CURRENT_TRANSFORM_GROUP_FOR_TYPE"i / "CURRENT_USER"i / "CURRENT"i / "CURSOR"i / "CYCLE"i
-      / "DATALINK"i / "DATE"i / "DAY"i / "DEALLOCATE"i / "DECIMAL"i / "DECLARE"i / "DEC"i / "DEFAULT"i / "DELETE"i / "DENSE_RANK"i / "DEREF"i / "DESCRIBE"i / "DETERMINISTIC"i / "DISCONNECT"i /
-        "DISTINCT"i / "DLNEWCOPY"i / "DLPREVIOUSCOPY"i / "DLURLCOMPLETE"i / "DLURLCOMPLETEONLY"i / "DLURLCOMPLETEWRITE"i / "DLURLPATHONLY"i / "DLURLPATHWRITE"i / "DLURLPATH"i / "DLURLSCHEME"i /
-        "DLURLSERVER"i / "DLVALUE"i / "DOUBLE"i / "DROP"i / "DYNAMIC"i
-      / "EACH"i / "ELEMENT"i / "ELSE"i / "END-EXEC"i / "END"i / "ESCAPE"i / "EVERY"i / "EXCEPT"i / "EXECUTE"i / "EXEC"i / "EXISTS"i / "EXP"i / "EXTERNAL"i / "EXTRACT"i
-      / "FALSE"i / "FETCH"i / "FILTER"i / "FIRST_VALUE"i / "FLOAT"i / "FLOOR"i / "FOREIGN"i / "FOR"i / "FREE"i / "FROM"i / "FULL"i / "FUNCTION"i / "FUSION"i
+  = $("ABS"i / "ALL"i / "ALLOCATE"i / "ALTER"i / "AND"i / "ANY"i / "ARE"i /
+        "ARRAY_AGG"i / "ARRAY"i / "ASENSITIVE"i / "ASYMMETRIC"i / "AS"i /
+        "ATOMIC"i / "AT"i / "AUTHORIZATION"i / "AVG"i
+      / "BEGIN"i / "BETWEEN"i / "BIGINT"i / "BINARY"i / "BLOB"i / "BOOLEAN"i /
+        "BOTH"i / "BY"i
+      / "CALLED"i / "CALL"i / "CARDINALITY"i / "CASCADED"i / "CASE"i / "CAST"i /
+        "CEILING"i / "CEIL"i / "CHARACTER_LENGTH"i / "CHAR_LENGTH"i /
+        "CHARACTER"i / "CHAR"i / "CHECK"i / "CLOB"i / "CLOSE"i / "COALESCE"i /
+        "COLLATE"i / "COLLECT"i / "COLUMN"i / "COMMIT"i / "CONDITION"i /
+        "CONNECT"i / "CONSTRAINT"i / "CONVERT"i / "CORRESPONDING"i / "CORR"i /
+        "COUNT"i / "COVAR_POP"i / "COVAR_SAMP"i / "CREATE"i / "CROSS"i /
+        "CUBE"i / "CUME_DIST"i / "CURRENT_CATALOG"i / "CURRENT_DATE"i /
+        "CURRENT_DEFAULT_TRANSFORM_GROUP"i / "CURRENT_PATH"i / "CURRENT_ROLE"i /
+        "CURRENT_SCHEMA"i / "CURRENT_TIMESTAMP"i / "CURRENT_TIME"i /
+        "CURRENT_TRANSFORM_GROUP_FOR_TYPE"i / "CURRENT_USER"i / "CURRENT"i /
+        "CURSOR"i / "CYCLE"i
+      / "DATALINK"i / "DATE"i / "DAY"i / "DEALLOCATE"i / "DECIMAL"i /
+        "DECLARE"i / "DEC"i / "DEFAULT"i / "DELETE"i / "DENSE_RANK"i /
+        "DEREF"i / "DESCRIBE"i / "DETERMINISTIC"i / "DISCONNECT"i /
+        "DISTINCT"i / "DLNEWCOPY"i / "DLPREVIOUSCOPY"i / "DLURLCOMPLETE"i /
+        "DLURLCOMPLETEONLY"i / "DLURLCOMPLETEWRITE"i / "DLURLPATHONLY"i /
+        "DLURLPATHWRITE"i / "DLURLPATH"i / "DLURLSCHEME"i / "DLURLSERVER"i /
+        "DLVALUE"i / "DOUBLE"i / "DROP"i / "DYNAMIC"i
+      / "EACH"i / "ELEMENT"i / "ELSE"i / "END-EXEC"i / "END"i / "ESCAPE"i /
+        "EVERY"i / "EXCEPT"i / "EXECUTE"i / "EXEC"i / "EXISTS"i / "EXP"i /
+        "EXTERNAL"i / "EXTRACT"i
+      / "FALSE"i / "FETCH"i / "FILTER"i / "FIRST_VALUE"i / "FLOAT"i / "FLOOR"i /
+        "FOREIGN"i / "FOR"i / "FREE"i / "FROM"i / "FULL"i / "FUNCTION"i /
+        "FUSION"i
       / "GET"i / "GLOBAL"i / "GRANT"i / "GROUPING"i / "GROUP"i
       / "HAVING"i / "HOLD"i / "HOUR"i
-      / "IDENTITY"i / "IMPORT"i / "INDICATOR"i / "INNER"i / "INOUT"i / "INSENSITIVE"i / "INSERT"i / "INTEGER"i / "INTERSECTION"i / "INTERSECT"i / "INTERVAL"i / "INTO"i / "INT"i / "IN"i / "IS"i
+      / "IDENTITY"i / "IMPORT"i / "INDICATOR"i / "INNER"i / "INOUT"i /
+        "INSENSITIVE"i / "INSERT"i / "INTEGER"i / "INTERSECTION"i /
+        "INTERSECT"i / "INTERVAL"i / "INTO"i / "INT"i / "IN"i / "IS"i
       / "JOIN"i
-      / "LAG"i / "LANGUAGE"i / "LARGE"i / "LAST_VALUE"i / "LATERAL"i / "LEADING"i / "LEAD"i / "LEFT"i / "LIKE_REGEX"i / "LIKE"i / "LN"i / "LOCALTIMESTAMP"i / "LOCAL"i / "LOCALTIME"i / "LOWER"i
-      / "MATCH"i / "MAX_CARDINALITY"i / "MAX"i / "MEMBER"i / "MERGE"i / "METHOD"i / "MINUTE"i / "MIN"i / "MODIFIES"i / "MODULE"i / "MOD"i / "MONTH"i / "MULTISET"i
-      / "NATIONAL"i / "NATURAL"i / "NCHAR"i / "NCLOB"i / "NEW"i / "NONE"i / "NORMALIZE"i / "NOT"i / "NO"i / "NTH_VALUE"i / "NTILE"i / "NULLIF"i / "NULL"i / "NUMERIC"i
-      / "OCCURRENCES_REGEX"i / "OCTET_LENGTH"i / "OFFSET"i / "OF"i / "OLD"i / "ONLY"i / "ON"i / "OPEN"i / "ORDER"i / "OR"i / "OUTER"i / "OUT"i / "OVERLAPS"i / "OVERLAY"i / "OVER"i
-      / "PARAMETER"i / "PARTITION"i / "PERCENTILE_CONT"i / "PERCENTILE_DISC"i / "PERCENT_RANK"i / "POSITION_REGEX"i / "POSITION"i / "POWER"i / "PRECISION"i / "PREPARE"i / "PRIMARY"i / "PROCEDURE"i
-      / "RANGE"i / "RANK"i / "READS"i / "REAL"i / "RECURSIVE"i / "REFERENCES"i / "REFERENCING"i / "REF"i / "REGR_AVGX"i / "REGR_AVGY"i / "REGR_COUNT"i / "REGR_INTERCEPT"i / "REGR_R2"i /
-        "REGR_SLOPE"i / "REGR_SXX"i / "REGR_SXY"i / "REGR_SYY"i / "RELEASE"i / "RESULT"i / "RETURNS"i / "RETURN"i / "REVOKE"i / "RIGHT"i / "ROLLBACK"i / "ROLLUP"i / "ROWS"i / "ROW_NUMBER"i / "ROW"i
-      / "SAVEPOINT"i / "SCOPE"i / "SCROLL"i / "SEARCH"i / "SECOND"i / "SELECT"i / "SENSITIVE"i / "SESSION_USER"i / "SET"i / "SIMILAR"i / "SMALLINT"i / "SOME"i / "SPECIFICTYPE"i / "SPECIFIC"i /
-        "SQLEXCEPTION"i / "SQLSTATE"i / "SQLWARNING"i / "SQL"i / "SQRT"i / "START"i / "STATIC"i / "STDDEV_POP"i / "STDDEV_SAMP"i / "SUBMULTISET"i / "SUBSTRING_REGEX"i / "SUBSTRING"i / "SUM"i /
-        "SYMMETRIC"i / "SYSTEM_USER"i / "SYSTEM"i
-      / "TABLESAMPLE"i / "TABLE"i / "THEN"i / "TIMESTAMP"i / "TIMEZONE_HOUR"i / "TIMEZONE_MINUTE"i / "TIME"i / "TO"i / "TRAILING"i / "TRANSLATE_REGEX"i / "TRANSLATE"i / "TRANSLATION"i / "TREAT"i /
+      / "LAG"i / "LANGUAGE"i / "LARGE"i / "LAST_VALUE"i / "LATERAL"i /
+        "LEADING"i / "LEAD"i / "LEFT"i / "LIKE_REGEX"i / "LIKE"i / "LN"i /
+        "LOCALTIMESTAMP"i / "LOCAL"i / "LOCALTIME"i / "LOWER"i
+      / "MATCH"i / "MAX_CARDINALITY"i / "MAX"i / "MEMBER"i / "MERGE"i /
+        "METHOD"i / "MINUTE"i / "MIN"i / "MODIFIES"i / "MODULE"i / "MOD"i /
+        "MONTH"i / "MULTISET"i
+      / "NATIONAL"i / "NATURAL"i / "NCHAR"i / "NCLOB"i / "NEW"i / "NONE"i /
+        "NORMALIZE"i / "NOT"i / "NO"i / "NTH_VALUE"i / "NTILE"i / "NULLIF"i /
+        "NULL"i / "NUMERIC"i
+      / "OCCURRENCES_REGEX"i / "OCTET_LENGTH"i / "OFFSET"i / "OF"i / "OLD"i /
+        "ONLY"i / "ON"i / "OPEN"i / "ORDER"i / "OR"i / "OUTER"i / "OUT"i /
+        "OVERLAPS"i / "OVERLAY"i / "OVER"i
+      / "PARAMETER"i / "PARTITION"i / "PERCENTILE_CONT"i / "PERCENTILE_DISC"i /
+        "PERCENT_RANK"i / "POSITION_REGEX"i / "POSITION"i / "POWER"i /
+        "PRECISION"i / "PREPARE"i / "PRIMARY"i / "PROCEDURE"i
+      / "RANGE"i / "RANK"i / "READS"i / "REAL"i / "RECURSIVE"i / "REFERENCES"i /
+        "REFERENCING"i / "REF"i / "REGR_AVGX"i / "REGR_AVGY"i / "REGR_COUNT"i /
+        "REGR_INTERCEPT"i / "REGR_R2"i / "REGR_SLOPE"i / "REGR_SXX"i /
+        "REGR_SXY"i / "REGR_SYY"i / "RELEASE"i / "RESULT"i / "RETURNS"i /
+        "RETURN"i / "REVOKE"i / "RIGHT"i / "ROLLBACK"i / "ROLLUP"i / "ROWS"i /
+        "ROW_NUMBER"i / "ROW"i
+      / "SAVEPOINT"i / "SCOPE"i / "SCROLL"i / "SEARCH"i / "SECOND"i /
+        "SELECT"i / "SENSITIVE"i / "SESSION_USER"i / "SET"i / "SIMILAR"i /
+        "SMALLINT"i / "SOME"i / "SPECIFICTYPE"i / "SPECIFIC"i /
+        "SQLEXCEPTION"i / "SQLSTATE"i / "SQLWARNING"i / "SQL"i / "SQRT"i /
+        "START"i / "STATIC"i / "STDDEV_POP"i / "STDDEV_SAMP"i / "SUBMULTISET"i /
+        "SUBSTRING_REGEX"i / "SUBSTRING"i / "SUM"i / "SYMMETRIC"i /
+        "SYSTEM_USER"i / "SYSTEM"i
+      / "TABLESAMPLE"i / "TABLE"i / "THEN"i / "TIMESTAMP"i / "TIMEZONE_HOUR"i /
+        "TIMEZONE_MINUTE"i / "TIME"i / "TO"i / "TRAILING"i /
+        "TRANSLATE_REGEX"i / "TRANSLATE"i / "TRANSLATION"i / "TREAT"i /
         "TRIGGER"i / "TRIM_ARRAY"i / "TRIM"i / "TRUE"i / "TRUNCATE"i
-      / "UESCAPE"i / "UNION"i / "UNIQUE"i / "UNKNOWN"i / "UNNEST"i / "UPDATE"i / "UPPER"i / "USER"i / "USING"i
-      / "VALUES"i / "VALUE"i / "VARBINARY"i / "VARCHAR"i / "VARYING"i / "VAR_POP"i / "VAR_SAMP"i
-      / "WHENEVER"i / "WHEN"i / "WHERE"i / "WIDTH_BUCKET"i / "WINDOW"i / "WITHIN"i / "WITHOUT"i / "WITH"i
-      / "XMLAGG"i / "XMLATTRIBUTES"i / "XMLBINARY"i / "XMLCAST"i / "XMLCOMMENT"i / "XMLCONCAT"i / "XMLDOCUMENT"i / "XMLELEMENT"i / "XMLEXISTS"i / "XMLFOREST"i / "XMLITERATE"i / "XMLNAMESPACES"i /
-        "XMLPARSE"i / "XMLPI"i / "XMLQUERY"i / "XMLSERIALIZE"i / "XMLTABLE"i / "XMLTEXT"i / "XMLVALIDATE"i / "XML"i
+      / "UESCAPE"i / "UNION"i / "UNIQUE"i / "UNKNOWN"i / "UNNEST"i / "UPDATE"i /
+        "UPPER"i / "USER"i / "USING"i
+      / "VALUES"i / "VALUE"i / "VARBINARY"i / "VARCHAR"i / "VARYING"i /
+        "VAR_POP"i / "VAR_SAMP"i
+      / "WHENEVER"i / "WHEN"i / "WHERE"i / "WIDTH_BUCKET"i / "WINDOW"i /
+        "WITHIN"i / "WITHOUT"i / "WITH"i
+      / "XMLAGG"i / "XMLATTRIBUTES"i / "XMLBINARY"i / "XMLCAST"i /
+        "XMLCOMMENT"i / "XMLCONCAT"i / "XMLDOCUMENT"i / "XMLELEMENT"i /
+        "XMLEXISTS"i / "XMLFOREST"i / "XMLITERATE"i / "XMLNAMESPACES"i /
+        "XMLPARSE"i / "XMLPI"i / "XMLQUERY"i / "XMLSERIALIZE"i / "XMLTABLE"i /
+        "XMLTEXT"i / "XMLVALIDATE"i / "XML"i
       / "YEAR"i
   ) !Ident
