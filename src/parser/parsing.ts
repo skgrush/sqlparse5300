@@ -1,6 +1,7 @@
 
 import { parse as RelationParse } from './peg/relations'
 import { parse as SqlParse } from './peg/sql'
+export { SyntaxError as SqlSyntaxError } from './peg/sql'
 import * as types from './types'
 import {fromSqlSelect, fromSelectPair} from './sqlToRel'
 

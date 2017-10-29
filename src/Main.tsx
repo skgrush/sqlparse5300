@@ -5,16 +5,15 @@ import * as JSONPretty from 'react-json-pretty'
 const Tracer = require('pegjs-backtrace')
 
 import {Catalog} from 'parser/types'
-import {parseRelations, parseSql, sqlToRelationalAlgebra} from './parser/parsing'
+import {parseSql, sqlToRelationalAlgebra, SqlSyntaxError} from './parser/parsing'
 
+import RelationsInput, {RelationsInputOutput} from './components/RelationsInput'
 import QueryInput from './components/QueryInput'
-import RelationsInput from './components/RelationsInput'
 import Tests from './components/Tests'
 
 import {htmlHLR} from './parser/relationalText'
 
 export interface MainState {
-  relationsInputText: string
   queryInputText: string
   status: string
   queryJSON: any
@@ -28,7 +27,6 @@ export default class Main extends React.Component<any, MainState> {
   constructor(props: any) {
     super(props)
     this.state = {
-      relationsInputText: "",
       queryInputText: "",
       status: "",
       catalog: null,
@@ -43,82 +41,70 @@ export default class Main extends React.Component<any, MainState> {
 
   }
 
-  onRelationsInputUpdate(text: string): void {
-    this.setState({relationsInputText: text})
+  onRelationsInputUpdate(output: RelationsInputOutput) {
+    if (output.error) {
+      this.setState({
+        catalog: null,
+        status: `Error Parsing Relations:  ${output.error}`,
+        debug: output.traceback
+      })
+    } else {
+      this.setState({
+        catalog: output.catalog,
+        status: "Successfully Parsed Relations",
+        debug: ''
+      })
+    }
   }
 
   onQueryInputUpdate(text: string): void {
-    this.setState({queryInputText: text},
+    this.setState({
+      status: "Parsing Query...",
+      queryInputText: text,
+      queryJSON: null,
+      relJSON: null,
+      debug: ""
+    },
       () => this.parseQuery())
 
   }
 
   parseQuery(): void {
-    this.setState({
-      status: "Parsing relations",
-      queryJSON: null,
-      relJSON: null,
-      debug: ""
-    })
-    const relatTracer = new Tracer(this.state.relationsInputText, {
-      useColor: false,
-      showTrace: true
-    })
+    const {queryInputText, catalog} = this.state
+
     let queryJSON
     let relJSON
-    let catalog
-    try {
-      catalog = parseRelations(this.state.relationsInputText, {tracer: relatTracer})
-      this.setState({
-        catalog,
-        status: "Parsed relations"
-      })
-    } catch (ex) {
-      this.setState({
-        status: `Parsing Relations:  ${ex.message}`,
-        relJSON: null,
-        queryJSON: null,
-        catalog: null,
-        debug: relatTracer.getParseTreeString()
-      })
-      console.error("ERR1", ex)
-      return
-    }
 
-    this.setState({status: "Parsing query"})
-    const queryTracer = new Tracer(this.state.queryInputText, {
+    const tracer = new Tracer(queryInputText, {
       useColor: false,
       showTrace: true
     })
     try {
-      queryJSON = parseSql(this.state.queryInputText, {tracer: queryTracer})
+      queryJSON = parseSql(queryInputText, {tracer})
       this.setState({
         queryJSON,
-        status: "Query parsed"
+        status: "Query parsed; Generating relational algebra..."
       })
     } catch (ex) {
-      const err: SyntaxError = ex
+      const err: SqlSyntaxError = ex
       this.setState({
-        status: `Parsing query:  ${err.message}`,
-        debug: queryTracer.getParseTreeString()
+        status: `Error Parsing Query:  ${err.message}`,
+        debug: tracer.getParseTreeString()
       })
-      console.error("ERR2", err)
-      return
+      throw err
     }
 
-    this.setState({status: "Generating relational algebra"})
     try {
-      relJSON = sqlToRelationalAlgebra(queryJSON, catalog as any)
+      relJSON = sqlToRelationalAlgebra(queryJSON, catalog as Catalog)
       this.setState({
         relJSON,
         status: "Generated relational algebra"
       })
     } catch (ex) {
-      console.error("ERR3", ex)
       this.setState({
-        status: ex.message,
+        status: `Error Generating Relational Algebra:  ${ex.message}`,
       })
-      return
+      throw ex
     }
   }
 
@@ -126,7 +112,10 @@ export default class Main extends React.Component<any, MainState> {
     return (
       <main id="main">
         <RelationsInput onUpdate={this.onRelationsInputUpdate} />
-        <QueryInput onUpdate={this.onQueryInputUpdate} />
+        <QueryInput
+          onUpdate={this.onQueryInputUpdate}
+          disabled={!this.state.catalog}
+        />
         <div id="parse-status">{this.state.status}</div>
         <h3>SQL</h3>
         <div id="query-output-test">
@@ -146,7 +135,7 @@ export default class Main extends React.Component<any, MainState> {
         <div id="debug-output">
           <pre><code>{this.state.debug}</code></pre>
         </div>
-        <Tests />
+        <Tests catalog={this.state.catalog} />
       </main>
     )
   }

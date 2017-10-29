@@ -22,7 +22,7 @@ FROM      Sailors, Boats, Reserves
 WHERE     Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
 Boats.color='green'`,
 
-`-- Query 2d
+`-- Query 2d (invalid)
 -- unescaped reserve word 'day'
 SELECT    S.sname
 FROM      Sailors AS S, Reserves AS R
@@ -46,7 +46,7 @@ FROM      Sailors, Boats, Reserves
 WHERE     Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
 Boats.color=’green’`,
 
-`-- Query 2f
+`-- Query 2f (invalid)
 -- illegal identifier '2color' of B
 SELECT    S.sid
 FROM      Sailors AS S,  Reserves AS R, Boats AS B
@@ -65,7 +65,7 @@ SELECT    S2.sid
 FROM      Sailors AS S2,  Reserves AS R2, Boats AS B2
 WHERE     S2.sid=R2.sid AND R2.bid=B2.bid AND B2.color=‘green’`,
 
-`-- Query 2g
+`-- Query 2g (invalid)
 -- typo 'Reserve'
 SELECT    S.sname
 FROM      Sailors AS S
@@ -80,7 +80,7 @@ WHERE     S.sid IN ( SELECT   R.sid
                      FROM     Reserves AS R
                      WHERE   R.bid = 103)`,
 
-`-- Query 2h
+`-- Query 2h (invalid)
 -- typo 'Reserve'
 SELECT    S.sname
 FROM      Sailors AS S
@@ -123,7 +123,7 @@ WHERE     R.bid=B.bid AND B.color = ‘red’
 GROUP BY  B.bid
 HAVING    B.color = ‘red’`,
 
-`-- Query 2l
+`-- Query 2l (invalid)
 -- typo "SLECT", misuse of nonstandard 'contains' WHERE predicate
 SELECT    Sname
 FROM      Sailors
@@ -145,8 +145,8 @@ WHERE     Sailor.sid IN (SELECT   Reserves.bid, Reserves.sid
                                   WHERE Boats.name  =  ‘interlake’
                                         AND Boats.bid = Reserves.bid ) )`,
 
-`-- Query 2m
--- Invalid TargetList
+`-- Query 2m (invalid)
+-- Bad TargetList
 SELECT    S.rating, Ave (S.age) As average
 FROM      Sailors S
 WHERE     S.age > 18

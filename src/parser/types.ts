@@ -191,6 +191,8 @@ export class SqlConditional {
               lhs: SqlConditional | SqlOperandType,
               rhs: SqlConditional | SqlOperandType | null = null,
               not: boolean = false) {
+    if (operation === 'in' && lhs instanceof Array && lhs.length === 1)
+      lhs = lhs[0]
     this.operation = operation
     this.lhs = lhs
     this.rhs = rhs || null
