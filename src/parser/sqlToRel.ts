@@ -28,7 +28,7 @@ class RenameBubbleUp {
 }
 
 class ColumnLookup {
-  readonly map: Map<string, ColumnValueType[]>
+  readonly map: Map<string, types.RelColumn[]>
   readonly catalog: types.Catalog
   readonly relations: RelationLookup
 
@@ -38,7 +38,7 @@ class ColumnLookup {
     this.relations = relations
   }
 
-  addAlias(name: string, target: ColumnValueType) {
+  addAlias(name: string, target: types.RelColumn) {
     const cols = this.map.get(name)
     if (!cols)
       this.map.set(name, [target])
@@ -46,7 +46,7 @@ class ColumnLookup {
       cols.push(target)
   }
 
-  lookup(columnName: string, relationName?: string): ColumnValueType {
+  lookup(columnName: string, relationName?: string, as?: string): types.RelColumn {
     if (relationName) {
       // column references a relation
       if (!this.relations.has(relationName)) {
@@ -57,18 +57,21 @@ class ColumnLookup {
       // if(!catRelation)
       //   throw new Error(`${relationName} not in catalog`)
       if (catRelation.columns.has(columnName))
-        return new types.RelColumn(relation, columnName)
+        return new types.RelColumn(relation,
+                                   catRelation.columns.get(columnName) as types.Column,
+                                   as)
       else
         throw new Error(`${catRelation.name} doesn't contain ${columnName}`)
     } else {
       // implicit relation reference
       if (this.map.has(columnName)) {
         // already in the map
-        const cols = this.map.get(columnName) as ColumnValueType[]
+        const cols = this.map.get(columnName) as types.RelColumn[]
         if (cols.length > 1)
           throw new Error(`Ambiguous column name reference "${columnName}"`)
-        else
-          return cols[0]
+
+        return cols[0].alias(as)
+
       }
       // not in map; search for columnName
       console.group()
@@ -83,7 +86,8 @@ class ColumnLookup {
           continue
         console.info(`found`)
         console.groupEnd()
-        return new types.RelColumn(val, columnName)
+        const col = catRel.columns.get(columnName) as types.Column
+        return new types.RelColumn(val, col, as)
       }
       console.info(`not found`)
       console.groupEnd()
@@ -162,7 +166,9 @@ function fromColumn(arg: types.SqlColumn,
     }
   } else if (typeof(arg.target) === 'string') {
     // column based on a name
-    target = columns.lookup(arg.target, arg.relation || undefined)
+    target = columns.lookup(arg.target,
+                            arg.relation || undefined,
+                            arg.as || undefined)
   } else if (arg.target instanceof types.SqlLiteral) {
     target = fromLiteral(arg.target)
   } else if (arg.target instanceof types.SqlAggFunction) {
@@ -384,11 +390,18 @@ function fromConditional(arg: types.SqlConditional,
     default:
       throw new Error(`Unknown op "${arg.operation}"`)
   }
-  const lhs = _condArgHelper(arg.lhs, relations, columns, catalog)
+  let lhs = _condArgHelper(arg.lhs, relations, columns, catalog)
+  if (lhs instanceof RenameBubbleUp) {
+    lhs = lhs.target
+  }
 
   if (op === 'in' && arg.rhs instanceof Array) {
-    const rs = arg.rhs.map((R) =>
-          _condArgHelper(R, relations, columns, catalog))
+    const rs = arg.rhs.map((R) => {
+      const tcond = _condArgHelper(R, relations, columns, catalog)
+      if (tcond instanceof RenameBubbleUp)
+        return tcond.target
+      return tcond
+    })
     const cond = new types.RelConditional('in', lhs, rs)
     if (arg.not)
       throw new Error("'not' conditional is not supported")
@@ -404,7 +417,9 @@ function fromConditional(arg: types.SqlConditional,
 
   if (!binOp)
     throw new Error("unary operators not supported")
-  const rhs = _condArgHelper(arg.rhs, relations, columns, catalog)
+  let rhs = _condArgHelper(arg.rhs, relations, columns, catalog)
+  if (rhs instanceof RenameBubbleUp)
+    rhs = rhs.target
 
   const condit = new types.RelConditional(op, lhs, rhs)
 
@@ -417,7 +432,10 @@ function fromOrderings(orderings, rels, cols, cata) {
   if (!orderings || !orderings.length)
     return null
   return orderings.map(([col, cond]) => {
-    return [fromColumn(col, rels, cols, cata), cond]
+    const column = fromColumn(col, rels, cols, cata)
+    if (column instanceof RenameBubbleUp)
+      return [column.target, cond]
+    return [column, cond]
   })
 }
 

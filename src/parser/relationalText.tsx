@@ -112,14 +112,28 @@ export function htmlRelProjection(res: types.RelProjection) {
 }
 
 export function htmlRelColumn(col: types.RelColumn, iter?: number) {
-  const RELNAME = getName(col.relation)
-  const NAME = col.name
+
+  if (col.as) {
+    return (
+      <span className="RelColumn" key={iter}>
+        <span className="column-as">{col.as}</span>
+      </span>
+    )
+  }
+
+  if (!col.relation) {
+    return (
+      <span className="RelColumn" key={iter}>
+        <span className="column-name">{getName(col.target)}</span>
+      </span>
+    )
+  }
 
   return (
     <span className="RelColumn" key={iter}>
-      <span className="relation-name">{RELNAME}</span>
+      <span className="relation-name">{getName(col.relation)}</span>
       .
-      <span className="column-name">{NAME}</span>
+      <span className="column-name">{getName(col.target)}</span>
     </span>
   )
 }
@@ -146,9 +160,11 @@ export function getName(thing) {
   if (thing instanceof types.RelRelation)
     return thing.name
   if (thing instanceof types.RelColumn)
-    return thing.as || thing.name
+    return thing.as || htmlRelColumn(thing)
   if (thing instanceof types.RelFunction)
     return htmlRelFunction(thing as types.RelFunction)
+  if (thing instanceof types.Column)
+    return thing.name
   console.info("getName", thing)
   throw new Error("unexpected thing to getName")
 }

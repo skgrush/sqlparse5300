@@ -126,15 +126,15 @@ TargetList
 
 TargetItem "TargetItem"
   = table:Name ".*"
-  { return new SqlColumn(table, '*', null) }
+  { return new SqlColumn(table, '*', `${table}.*`, null) }
   / op:Operand __ "AS"i __ alias:Name
-  { return new SqlColumn(null, op, alias )}
+  { return new SqlColumn(null, op, alias, alias )}
   / op:Operand __ alias:Name
-  { return new SqlColumn(null, op, alias )}
+  { return new SqlColumn(null, op, alias, alias )}
   / op:Operand _ "=" _ alias:Name
-  { return new SqlColumn(null, op, alias) }
+  { return new SqlColumn(null, op, alias, alias) }
   / op:Operand
-  { return new SqlColumn(null, op) }
+  { return (op instanceof SqlColumn) ? op : new SqlColumn(null, op) }
 
 Condition "Condition"
   = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
@@ -231,7 +231,10 @@ Term
 
 ColumnRef
   = tbl:( table:Name "." )? column:Name
-    { return new SqlColumn(tbl && tbl[0], column) }
+    { return new SqlColumn(tbl && tbl[0],
+                           column,
+                           tbl ? `${tbl[0]}.${column}` : column
+                          ) }
 
 AggFunction "aggregate function"
   = AggFunctionAvg

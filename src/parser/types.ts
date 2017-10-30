@@ -157,13 +157,16 @@ export class SqlColumn {
   readonly type = COLUMN_TYPE
   relation: string | null
   target: SqlOperandType
+  as: string | null
   alias: string | null
 
   constructor(relation: string | null,
               target: SqlOperandType,
+              As: string | null = null,
               alias: string | null = null) {
     this.relation = relation
     this.target = target
+    this.as = As || null
     this.alias = alias || null
   }
 }
@@ -272,16 +275,26 @@ export class RelOperation {
   }
 }
 
+type ColumnValueType = Column | RelFunction | string
+
 export class RelColumn {
   readonly type = REL_COLUMN_TYPE
-  relation: RelRelation
-  name: string
+  relation: RelRelation | null
+  target: ColumnValueType
   as: string | null
 
-  constructor(relation: RelRelation, name: string, As: string | null = null) {
+  constructor(relation: RelRelation | null,
+              target: ColumnValueType,
+              As: string | null = null) {
     this.relation = relation
-    this.name = name
-    this.as = As
+    this.target = target
+    this.as = As || null
+  }
+
+  alias(alias?: string) {
+    if (!alias)
+      return this
+    return new RelColumn(this.relation, this.target, alias)
   }
 }
 
