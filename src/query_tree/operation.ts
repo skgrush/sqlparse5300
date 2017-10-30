@@ -19,7 +19,7 @@ export class Projection extends Operation {
   }
 
   addTarget(data) {
-    let { relation, target, alias} = data
+    let { relation, target, alias} = data.target
     let arg: string = `${relation} ${target}`
     if(alias)
       arg += ` as ${alias}`
@@ -44,7 +44,7 @@ export class From extends Operation {
        throw new Error('From without both lhs and rhs')
      }
 
-    let arg = data.target
+    let arg = data.target.target
     if(data.alias) arg += ` as ${data.alias}`
     this.addArgument(arg)
   }
@@ -74,8 +74,9 @@ export class Where extends Operation {
     let arg
     if(data.relation) arg = `${data.relation}.${data.target}`
     if(data.relation && data.alias) arg += ` as ${data.alias}`
-    if(data.value) arg = data.value
-    
+    if(data.literalType === "number" && data.value) arg = data.value
+    if(data.literalType === "string" && data.value) arg = `\'${data.value}\'`
+
     return arg
   }
 }
