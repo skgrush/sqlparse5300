@@ -21,11 +21,13 @@ interface TestCaseProps {
 
 interface TestCaseState {
   status: string
+  treeStatus: string
   queryJSON: any
   relAlJSON: any
   root: Node | null
   relAlHTML: JSX.Element | null
   color: string
+  tscolor: string
   debug: any
 }
 
@@ -60,11 +62,13 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
   initialState(): TestCaseState {
     return {
       status: 'init',
+      treeStatus: '',
       queryJSON: null,
       relAlJSON: null,
       relAlHTML: null,
       root: null,
       color: 'currentcolor',
+      tscolor: 'currentcolor',
       debug: ''
     }
   }
@@ -79,11 +83,13 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
     })
 
     let status = ''
+    let treeStatus = ''
     let queryJSON = null
     let relAlJSON = null
     let relAlHTML = null
     let root: Node | null = null
     let color = 'currentcolor'
+    let tscolor = 'currentcolor'
     let debug = ''
 
     try {
@@ -123,22 +129,24 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       }
       try {
         root = parseSQLToTree(/*relAlJSON*/queryJSON)
-        status += " \n Tree Generated"
-        color = "green"
+        treeStatus = "Tree Generated"
+        tscolor = "green"
       } catch (ex) {
-        status += ` \n Tree Error: ${ex}`
-        color = "red"
+        treeStatus = `Tree Error: ${ex}`
+        tscolor = "red"
         console.error(ex)
       }
     }
 
     this.setState({
       status,
+      treeStatus,
       queryJSON,
       relAlJSON,
       relAlHTML,
       root,
       color,
+      tscolor,
       debug
      })
   }
@@ -149,8 +157,15 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
         <hr />
         <h3>{this.props.name || this.props.anchor}</h3>
         <pre><code>{this.props.queryInputText}</code></pre>
-        <div className="testcase-status" style={{color: this.state.color}}>
-          Status: {this.state.status || "OK"}
+        <div className="testcase-status">
+          <span style={{color: this.state.color}}>
+            Status: {this.state.status || "OK"}
+          </span>
+          { this.state.treeStatus && (
+            <span style={{color: this.state.tscolor}}>
+              Tree Status: {this.state.treeStatus}
+            </span>
+          )}
         </div>
         <div className="testcase-inner">
           <div className="relal-html" data-empty={!this.state.relAlHTML}>

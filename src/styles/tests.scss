@@ -1,5 +1,8 @@
 
 .testcase {
+  & > .testcase-status > span {
+    display: block;
+  }
   & > .testcase-inner {
     display: flex;
     flex-flow: row wrap;
