@@ -8,6 +8,7 @@ export const AGGFUNCTION_TYPE   = "aggfunction"
 export const OPERATION_TYPE     = "operation"
 export const SELECTCLAUSE_TYPE  = "selectclause"
 export const TARGETCLAUSE_TYPE  = "targetclause"
+export const SELECTPAIR_TYPE    = "selectpair"
 
 export const REL_RESTRICTION_TYPE = "restriction"
 export const REL_PROJECTION_TYPE  = "projection"
@@ -92,7 +93,7 @@ export interface TargetClause {
 }
 
 export class SqlLiteral {
-  static readonly type = LITERAL_TYPE
+  readonly type = LITERAL_TYPE
   literalType: 'string' | 'number' | 'boolean' | 'null'
   value: string | number | boolean | null
 
@@ -103,8 +104,30 @@ export class SqlLiteral {
   }
 }
 
+export type SqlSelectish = SqlSelect | SqlSelectPair
+export type PairingString = 'union' | 'intersect' | 'except'
+export type PairingCondition = 'all' | 'distinct' | null
+
+export class SqlSelectPair {
+  readonly type = SELECTPAIR_TYPE
+  pairing: PairingString
+  condition: PairingCondition
+  lhs: SqlSelect
+  rhs: SqlSelectish
+
+  constructor(pairing: PairingString,
+              condition: PairingCondition,
+              lhs: SqlSelect,
+              rhs: SqlSelectish) {
+    this.pairing = pairing
+    this.condition = condition || null
+    this.lhs = lhs
+    this.rhs = rhs
+  }
+}
+
 export class SqlSelect {
-  static readonly SELECTCLAUSE_TYPE
+  readonly SELECTCLAUSE_TYPE
   what: TargetClause
   from: RelationList
   where: SqlConditional | null
@@ -131,7 +154,7 @@ export type SqlOperandType = SqlLiteral | SqlAggFunction | SqlColumn |
                       SqlOperation | string
 
 export class SqlColumn {
-  static readonly type = COLUMN_TYPE
+  readonly type = COLUMN_TYPE
   relation: string | null
   target: SqlOperandType
   alias: string | null
@@ -146,7 +169,7 @@ export class SqlColumn {
 }
 
 export class SqlJoin {
-  static readonly type = JOIN_TYPE
+  readonly type = JOIN_TYPE
   joinType: JOINSTRING
   condition: SqlConditional | ['using', TargetList] | null
   lhs: SqlJoin | SqlRelation
@@ -165,7 +188,7 @@ export class SqlJoin {
 }
 
 export class SqlRelation {
-  static readonly type = RELATION_TYPE
+  readonly type = RELATION_TYPE
   target: SqlRelation | SqlJoin | string
   alias: string | null
 
@@ -181,7 +204,7 @@ export type SqlConditionalOp = 'or' | 'and' | 'not' | 'in' | 'exists' | 'like' |
                                '<=' | '>=' | '=' | '<' | '>' | '!='
 
 export class SqlConditional {
-  static readonly type = CONDITIONAL_TYPE
+  readonly type = CONDITIONAL_TYPE
   operation: SqlConditionalOp
   lhs: SqlConditional | SqlOperandType
   rhs: SqlConditional | SqlOperandType | null
@@ -203,7 +226,7 @@ export class SqlConditional {
 export type AggFuncName = 'avg' | 'count' | 'max' | 'min' | 'sum'
 
 export class SqlAggFunction {
-  static readonly type = AGGFUNCTION_TYPE
+  readonly type = AGGFUNCTION_TYPE
   fname: AggFuncName
   expr: SqlOperandType | TargetClause
 
@@ -216,7 +239,7 @@ export class SqlAggFunction {
 export type SqlOperationOps = '||' | '+' | '-' | '*' | '/'
 
 export class SqlOperation {
-  static readonly type = OPERATION_TYPE
+  readonly type = OPERATION_TYPE
   op: SqlOperationOps
   lhs: SqlOperandType
   rhs: SqlOperandType
@@ -235,7 +258,7 @@ export type RelRelationish = RelRelation | RelJoin
 export type RelOperandType = RelOperation | string | RelColumn
 
 export class RelOperation {
-  static readonly type = REL_OPERATION_TYPE
+  readonly type = REL_OPERATION_TYPE
   op: SqlOperationOps | 'union' | 'intersect' | 'except'
   lhs: RelOperandType | HighLevelRelationish
   rhs: RelOperandType | HighLevelRelationish
@@ -250,18 +273,20 @@ export class RelOperation {
 }
 
 export class RelColumn {
-  static readonly type = REL_COLUMN_TYPE
+  readonly type = REL_COLUMN_TYPE
   relation: RelRelation
   name: string
+  as: string | null
 
-  constructor(relation: RelRelation, name: string) {
+  constructor(relation: RelRelation, name: string, As: string | null = null) {
     this.relation = relation
     this.name = name
+    this.as = As
   }
 }
 
 export class RelFunction {
-  static readonly type = REL_FUNCTION_TYPE
+  readonly type = REL_FUNCTION_TYPE
   fname: AggFuncName
   expr: '*' | RelColumn // TODO: support correct args
 
@@ -275,7 +300,7 @@ export type ThetaOp = 'eq' | 'neq' | 'leq' | 'geq' | '<' | '>' | 'and' | 'or' |
                       'in'
 
 export class RelConditional {
-  static readonly type = REL_CONDITIONAL_TYPE
+  readonly type = REL_CONDITIONAL_TYPE
   operation: ThetaOp
   lhs: RelOperandType | RelConditional
   rhs: RelOperandType | RelConditional | RelOperandType[]
@@ -291,7 +316,7 @@ export class RelConditional {
 export type HighLevelRelationish = RelRelationish | RelRestriction | RelProjection | RelRename | RelOperation
 
 export class RelRestriction {
-  static readonly type = REL_RESTRICTION_TYPE
+  readonly type = REL_RESTRICTION_TYPE
   conditions: RelConditional
   args: HighLevelRelationish
 
@@ -302,7 +327,7 @@ export class RelRestriction {
 }
 
 export class RelProjection {
-  static readonly type = REL_PROJECTION_TYPE
+  readonly type = REL_PROJECTION_TYPE
   columns: RelColumn[]
   args: HighLevelRelationish
 
@@ -312,18 +337,18 @@ export class RelProjection {
   }
 }
 
-export class RelRename {
-  static readonly type = REL_RENAME_TYPE
-  input: RelRelation | RelColumn | RelFunction | string
-  output: string
-  args: HighLevelRelationish | null
+type _RelRenameInputType = RelRelation | RelColumn | RelFunction |
+                           RelRename | string
 
-  constructor(input: RelRelation | RelColumn | RelFunction | string | RelRename,
+export class RelRename {
+  readonly type = REL_RENAME_TYPE
+  input: _RelRenameInputType
+  output: string
+  args: HighLevelRelationish
+
+  constructor(input: _RelRenameInputType,
               output: string,
-              args: HighLevelRelationish | null) {
-    if (input instanceof RelRename) {
-      input = input.input
-    }
+              args: HighLevelRelationish) {
     this.input = input
     this.output = output
     this.args = args
@@ -331,7 +356,7 @@ export class RelRename {
 }
 
 export class RelRelation {
-  static readonly type = REL_RELATION_TYPE
+  readonly type = REL_RELATION_TYPE
   name: string
 
   constructor(name: string) {
@@ -346,12 +371,14 @@ export type RelJoinCond = "cross" | "left" | "right" | RelConditional
 // theta join (with condition)
 // semi (left and right)
 export class RelJoin {
-  static readonly type = REL_JOIN_TYPE
-  lhs: RelRelationish
-  rhs: RelRelationish
+  readonly type = REL_JOIN_TYPE
+  lhs: HighLevelRelationish
+  rhs: HighLevelRelationish
   condition: RelJoinCond
 
-  constructor(lhs: RelRelationish, rhs: RelRelationish, cond: RelJoinCond) {
+  constructor(lhs: HighLevelRelationish,
+              rhs: HighLevelRelationish,
+              cond: RelJoinCond) {
     this.lhs = lhs
     this.rhs = rhs
     this.condition = cond

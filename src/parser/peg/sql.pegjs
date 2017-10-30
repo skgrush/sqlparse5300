@@ -19,17 +19,21 @@ Statement
   = Selectish
 
 Selectish
-  = "(" _ sel:Selectish _ ")" { return sel }
-  / SelectPair
+  = SelectPair
   / Select
 
 
 SelectPair
   = lhs:Select __
-    pairing:( "UNION"i / "INTERSECT"i / "EXCEPT"i ) __
+    pairing:$( "UNION"i / "INTERSECT"i / "EXCEPT"i ) __
     spec:( "ALL"i __ / "DISTINCT"i __ )?
     rhs:( Selectish )
-  { return [lhs, pairing.toLowerCase(), spec && spec[0].toLowerCase(), rhs] }
+  {
+    return new SqlSelectPair(pairing.toLowerCase(),
+                             spec && spec[0].toLowerCase(),
+                             lhs,
+                             rhs)
+  }
 
 Select
   = "SELECT"i __ what:TargetClause __
@@ -42,6 +46,7 @@ Select
     return new SqlSelect(what, from, where && where[3],groupBy && groupBy[5],
                          having && having[3], orderBy && orderBy[5])
   }
+  / "(" _ sel:Select _ ")" { return sel }
 
 TargetClause
   = spec:$( "DISTINCT"i __ / "ALL"i __ )?
@@ -176,7 +181,7 @@ ConditionIn
     not:( "NOT"i __ )?
     "IN"i _
     "(" _
-      rhs_ops:( OperandList ) _
+      rhs_ops:( Selectish / OperandList ) _
     ")"
   { return new SqlConditional('in', lhs_op, rhs_ops, not) }
 
@@ -293,7 +298,7 @@ Operand // Summand | makeOperation
     rhs:( _ "||" _ Summand ) *
   { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation("||",
                                                               lh, rh[3])) }
-  / _ Select _
+  / Selectish
 
 Summand // Factor | makeOperation
   = lhs:Factor

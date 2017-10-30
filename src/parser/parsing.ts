@@ -22,8 +22,8 @@ export function sqlToRelationalAlgebra(sqlStatements, catalog: types.Catalog) {
   const TLStatement = sqlStatements[0]
   if (TLStatement instanceof types.SqlSelect)
     return fromSqlSelect(TLStatement, catalog)
-  else if (Array.isArray(TLStatement) && TLStatement.length === 4)
-    return fromSelectPair(TLStatement as any, catalog)
+  else if (TLStatement instanceof types.SqlSelectPair)
+    return fromSelectPair(TLStatement, catalog)
   else
     throw new Error(`Unknown sqlToRelationalAlgebra arg ${TLStatement}`)
 }

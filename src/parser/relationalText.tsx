@@ -88,7 +88,12 @@ export function htmlRelProjection(res: types.RelProjection) {
   res.columns.forEach((col, idx) => {
     if (idx > 0)
       COLUMNS.push(",")
-    COLUMNS.push(htmlRelColumn(col, idx))
+    if (col instanceof types.RelColumn)
+      COLUMNS.push(htmlRelColumn(col, idx))
+    else if ((col as any) instanceof types.RelFunction)
+      COLUMNS.push(htmlRelFunction(col, idx))
+    else
+      COLUMNS.push(col)
   })
   const ARGS = htmlHLR(res.args)
   return (
@@ -119,14 +124,14 @@ export function htmlRelColumn(col: types.RelColumn, iter?: number) {
   )
 }
 
-export function htmlRelFunction(funct: types.RelFunction) {
+export function htmlRelFunction(funct: types.RelFunction, idx?) {
   const NAME = funct.fname.toUpperCase()
   const EXPR = funct.expr === '*'
           ? '*'
           : htmlRelColumn(funct.expr)
 
   return (
-    <span className="RelFunction">
+    <span className="RelFunction" key={idx}>
       <span className="function-name">{NAME}</span>
       (
         {EXPR}
@@ -141,9 +146,10 @@ export function getName(thing) {
   if (thing instanceof types.RelRelation)
     return thing.name
   if (thing instanceof types.RelColumn)
-    return thing.name
+    return thing.as || thing.name
   if (thing instanceof types.RelFunction)
     return htmlRelFunction(thing as types.RelFunction)
+  console.info("getName", thing)
   throw new Error("unexpected thing to getName")
 }
 
@@ -208,20 +214,10 @@ export function htmlRelJoin(join: types.RelJoin) {
   )
 }
 
-function _htmlRelOperandOrHLR(operandOrHLR: types.RelOperandType | types.HighLevelRelationish) {
-  try {
-    return htmlRelOperand(operandOrHLR as types.RelOperandType)
-  } catch (ex) {
-    if (ex.message === "Unexpected operand type") {
-      return htmlHLR(operandOrHLR as types.HighLevelRelationish)
-    }
-  }
-}
-
 export function htmlRelOperation(op: types.RelOperation) {
   const OPSYM = getSymbol(op.op)
-  const LHS = _htmlRelOperandOrHLR(op.lhs)
-  const RHS = _htmlRelOperandOrHLR(op.rhs)
+  const LHS = htmlRelOperand(op.lhs as any)
+  const RHS = htmlRelOperand(op.rhs as any)
 
   return (
     <span className="RelOperation">
@@ -235,11 +231,14 @@ export function htmlRelOperation(op: types.RelOperation) {
 export function htmlRelOperand(operand: types.RelOperandType) {
   if (typeof(operand) === 'string')
     return operand
+  if (operand instanceof types.RelFunction)
+    return htmlRelFunction(operand)
   if (operand instanceof types.RelOperation)
     return htmlRelOperation(operand)
   if (operand instanceof types.RelColumn)
     return htmlRelColumn(operand)
-  throw new Error("Unexpected operand type")
+  // throw new Error("Unexpected operand type")
+  return htmlHLR(operand)
 }
 
 export function htmlRelConditional(cond: types.RelConditional) {
@@ -280,5 +279,6 @@ export function htmlHLR(hlr: types.HighLevelRelationish) {
     return htmlRelRelation(hlr)
   if (hlr instanceof types.RelJoin)
     return htmlRelJoin(hlr)
+  console.error("unknown HLR:", hlr)
   throw new Error("Unknown type passed to htmlHLR")
 }

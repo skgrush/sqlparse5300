@@ -92,21 +92,23 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       color = "green"
     } catch (ex) {
       if (ex instanceof SqlSyntaxError)
-        status = `Parser Error [0]: ${ex.message}`
+        status = `Parser Syntax Error: ${ex.message}`
       else
-        status = `Parser Error [1]: ${ex}`
+        status = `Other Parser ${ex}`
+      console.error(ex)
       color = "red"
       debug = tracer.getParseTreeString()
     }
 
     if (queryJSON) {
       try {
-        relAlJSON = sqlToRelationalAlgebra(queryJSON, catalog)
+        relAlJSON = sqlToRelationalAlgebra(queryJSON, catalog) as any
         status = "SQL Parsed and converted to Relational Algebra"
         color = "green"
       } catch (ex) {
-        status = `Parser Error [2]: ${ex}`
+        status = `Relational Algebra ${ex}`
         color = "red"
+        console.error(ex)
       }
     }
     if (relAlJSON) {
@@ -117,14 +119,16 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       } catch (ex) {
         status = `HTML Conversion Error: ${ex}`
         color = "red"
+        console.error(ex)
       }
       try {
         root = parseSQLToTree(/*relAlJSON*/queryJSON)
-        status = "Tree Generated"
+        status += " \n Tree Generated"
         color = "green"
       } catch (ex) {
-        status = `Tree Error: ${ex}`
+        status += ` \n Tree Error: ${ex}`
         color = "red"
+        console.error(ex)
       }
     }
 

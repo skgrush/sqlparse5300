@@ -23,13 +23,14 @@ WHERE     Sailors.sid=Reserves.sid AND Reserves.bid=Boats.bid AND
 Boats.color='green'`,
 
 `-- Query 2d (invalid)
--- unescaped reserve word 'day'
+-- unescaped reserve word 'day', invalid reference 'R.rating'
 SELECT    S.sname
 FROM      Sailors AS S, Reserves AS R
 WHERE     R.sid = S.sid AND R.bid = 100 AND R.rating > 5 AND R.day =
 ‘8/9/09’`,
 
-`-- Modified Query2d
+`-- Modified Query2d (invalid)
+-- still unknown reference 'R.rating'
 SELECT    S.sname
 FROM      Sailors AS S, Reserves AS R
 WHERE     R.sid = S.sid AND R.bid = 100 AND R.rating > 5 AND R.\`day\` =
@@ -66,31 +67,31 @@ FROM      Sailors AS S2,  Reserves AS R2, Boats AS B2
 WHERE     S2.sid=R2.sid AND R2.bid=B2.bid AND B2.color=‘green’`,
 
 `-- Query 2g (invalid)
--- typo 'Reserve'
+-- unknown reference 'Reserve'
 SELECT    S.sname
 FROM      Sailors AS S
 WHERE     S.sid IN ( SELECT   R.sid
                      FROM     Reserve AS R
-                     WHERE   R.bid = 103)`,
+                     WHERE    R.bid = 103)`,
 
 `-- Modified Query 2g
 SELECT    S.sname
 FROM      Sailors AS S
 WHERE     S.sid IN ( SELECT   R.sid
                      FROM     Reserves AS R
-                     WHERE   R.bid = 103)`,
+                     WHERE    R.bid = 103)`,
 
 `-- Query 2h (invalid)
--- typo 'Reserve'
+-- unknown reference 'Reserve'
 SELECT    S.sname
 FROM      Sailors AS S
 WHERE     S.sid IN ((SELECT   R.sid
                      FROM     Reserve AS R, Boats AS B
-                     WHERE   R.bid = B.bid AND B.color = ‘red’)
+                     WHERE    R.bid = B.bid AND B.color = ‘red’)
                     INTERSECT
                     (SELECT   R2.sid
                      FROM     Reserve AS R2, Boats AS B2
-                     WHERE   R2.bid = B2.bid AND B2.color = ‘green’))`,
+                     WHERE    R2.bid = B2.bid AND B2.color = ‘green’))`,
 
 `-- Modified Query 2h
 SELECT    S.sname
@@ -103,12 +104,20 @@ WHERE     S.sid IN ((SELECT   R.sid
                      FROM     Reserves AS R2, Boats AS B2
                      WHERE   R2.bid = B2.bid AND B2.color = ‘green’))`,
 
-`-- Query 2i
+`-- Query 2i (invalid)
+-- bad inner condition string, also unknown reference 'R'
 SELECT   S.sname
 FROM      Sailors AS S
 WHERE     S.age > ( SELECT    MAX (S2.age)
                     FROM      Sailors S2
                     WHERE    R.sid = S2.rating = 10)`,
+
+`-- Modified Query 2i
+SELECT   S.sname
+FROM      Sailors AS S
+WHERE     S.age > ( SELECT    MAX (S2.age)
+                    FROM      Sailors S2
+                    WHERE     S2.rating = 10)`,
 
 `-- Query 2j
 SELECT   B.bid, Count (*) AS reservationcount
@@ -124,7 +133,7 @@ GROUP BY  B.bid
 HAVING    B.color = ‘red’`,
 
 `-- Query 2l (invalid)
--- typo "SLECT", misuse of nonstandard 'contains' WHERE predicate
+-- typo "SLECT", misuse of nonstandard 'contains' WHERE predicate, 'Sname'
 SELECT    Sname
 FROM      Sailors
 WHERE     Sailor.sid IN (SELECT   Reserves.bid, Reserves.sid
@@ -134,13 +143,14 @@ WHERE     Sailor.sid IN (SELECT   Reserves.bid, Reserves.sid
                                    FROM  Boats
                                    WHERE Boats.name  =  ‘interlake’) )`,
 
-`-- Modified Query 2l
+`-- Modified Query 2l (invalid, system-specific)
+-- unknown reference 'Sname'
 SELECT    Sname
 FROM      Sailors
 WHERE     Sailor.sid IN (SELECT   Reserves.bid, Reserves.sid
                          FROM     Reserves
                          WHERE    EXISTS (
-                                  SLECT Boats.bid
+                                  SELECT Boats.bid
                                   FROM  Boats
                                   WHERE Boats.name  =  ‘interlake’
                                         AND Boats.bid = Reserves.bid ) )`,
