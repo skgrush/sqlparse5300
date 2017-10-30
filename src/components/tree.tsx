@@ -14,16 +14,17 @@ export default
 class Tree extends React.Component<TreeProps, TreeState> {
   render() {
       const rows: JSX.Element[] = []
-      let node = this.props.root
-      let depth = 0
-      while (node) {
+      let frontier: Node[] = [this.props.root]
+      let key = 0
+      while (frontier.length > 0) {
+        let node: Node = frontier.shift() as Node
         const row = <TreeRow
                       node={node}
-                      key={depth}
-                      offset={this.props.margin * depth}/>
+                      key={key}
+                      offset={this.props.margin * node.depth}/>
         rows.push(row)
-        depth++
-        node = node.children[0]
+        frontier = frontier.concat(node.children)
+        key++
       }
       return (
       <div>
