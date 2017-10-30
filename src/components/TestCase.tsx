@@ -128,9 +128,9 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
         console.error(ex)
       }
       try {
-        root = parseSQLToTree(/*relAlJSON*/queryJSON)
-        treeStatus = "Tree Generated"
-        tscolor = "green"
+        root = parseSQLToTree(relAlJSON)
+        status = "Tree Generated"
+        color = "green"
       } catch (ex) {
         treeStatus = `Tree Error: ${ex}`
         tscolor = "red"
