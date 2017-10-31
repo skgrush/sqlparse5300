@@ -10,6 +10,8 @@ import RelationsInput, {RelationsInputOutput} from './components/RelationsInput'
 import QueryInput from './components/QueryInput'
 import Tests from './components/Tests'
 import TestCase from './components/TestCase'
+import parseSQLToTree from './query_tree/parse'
+import {HighLevelRelationish} from './parser/types'
 
 export interface MainState {
   queryInputText: string
@@ -37,6 +39,22 @@ export default class Main extends React.Component<any, MainState> {
     this.onRelationsInputUpdate = this.onRelationsInputUpdate.bind(this)
     this.onQueryInputUpdate = this.onQueryInputUpdate.bind(this)
 
+    const testRelationalData = {
+      "type": "projection",
+      "columns": [
+        {
+          "type": "relcolumn",
+          "relation": {
+            "type": "relrelation",
+            "name": "Sailors"
+          },
+          "name": "sname",
+          "as": null
+        }
+      ]
+    }
+    let node = parseSQLToTree(testRelationalData as HighLevelRelationish)
+    console.log(node)
   }
 
   onRelationsInputUpdate(output: RelationsInputOutput) {
