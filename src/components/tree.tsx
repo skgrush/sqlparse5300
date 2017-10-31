@@ -7,17 +7,14 @@ interface TreeProps {
   margin: number
 }
 
-interface TreeState {
-}
-
 export default
-class Tree extends React.Component<TreeProps, TreeState> {
+class Tree extends React.Component<TreeProps, any> {
   render() {
       const rows: JSX.Element[] = []
       let frontier: Node[] = [this.props.root]
       let key = 0
       while (frontier.length > 0) {
-        let node: Node = frontier.shift() as Node
+        const node: Node = frontier.shift() as Node
         const row = <TreeRow
                       node={node}
                       key={key}
@@ -39,10 +36,7 @@ interface TreeRowProps {
   node: Node
 }
 
-interface TreeRowState {
-}
-
-class TreeRow extends React.Component<TreeRowProps, TreeRowState> {
+class TreeRow extends React.Component<TreeRowProps, any> {
   render() {
     return (
       <div className="tree-row">

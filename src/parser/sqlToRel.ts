@@ -40,10 +40,14 @@ class ColumnLookup {
 
   addAlias(name: string, target: types.RelColumn) {
     const cols = this.map.get(name)
+    if (!(target instanceof types.RelColumn)) {
+      target = new types.RelColumn(null, target, name)
+    }
     if (!cols)
       this.map.set(name, [target])
     else
       cols.push(target)
+    return target
   }
 
   lookup(columnName: string, relationName?: string, as?: string): types.RelColumn {
@@ -178,7 +182,7 @@ function fromColumn(arg: types.SqlColumn,
   }
 
   if (alias) {
-    columns.addAlias(alias, target)
+    target = columns.addAlias(alias, target)
     return new RenameBubbleUp(target, alias)
   }
   return target
