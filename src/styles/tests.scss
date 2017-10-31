@@ -13,6 +13,12 @@
 
     & > .relal-html {
       flex: 2 2 100%;
+      .HLR {
+        // relational groups that can break
+        display: inline-block;
+        text-indent: -10px;
+        margin-left: 10px;
+      }
     }
     & > .sql-json,
     & > .relal-json,
