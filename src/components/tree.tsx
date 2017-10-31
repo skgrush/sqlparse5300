@@ -21,9 +21,9 @@ class Tree extends React.Component<TreeProps, TreeState> {
         const row = <TreeRow
                       node={node}
                       key={key}
-                      offset={this.props.margin * node.depth}/>
+                      offset={node.depth}/>
         rows.push(row)
-        frontier = frontier.concat(node.children)
+        frontier = node.children.concat(frontier)
         key++
       }
       return (
@@ -45,10 +45,8 @@ interface TreeRowState {
 class TreeRow extends React.Component<TreeRowProps, TreeRowState> {
   render() {
     return (
-      <div className="tree-row" style={{paddingLeft: this.props.offset}}>
-        {this.props.node.operation.name} ({this.props.node.operation.arguments.map(arg => {
-          return arg + ", "
-        })})
+      <div className="tree-row">
+        {"-".repeat(this.props.offset) + `${this.props.offset})`} {this.props.node.operation.html}
       </div>
     )
   }

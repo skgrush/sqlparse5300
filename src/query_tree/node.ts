@@ -16,8 +16,9 @@ export default class Node {
   children: Node[] = []
   depth: number = 0
 
-  constructor(hlr: types.HighLevelRelationish) {
+  constructor(hlr: types.HighLevelRelationish, depth: number = 0) {
     this.hlr = hlr
+    this.depth = depth
     this.generateOpAndKids()
   }
 
@@ -26,21 +27,21 @@ export default class Node {
       this.operation = new Relation(this.hlr)
     } else if (this.hlr instanceof types.RelJoin) {
       this.operation = new Join(this.hlr)
-      this.addNode(new Node(this.hlr.lhs))
-      this.addNode(new Node(this.hlr.rhs))
+      this.addNode(new Node(this.hlr.lhs, this.depth + 1))
+      this.addNode(new Node(this.hlr.rhs, this.depth + 1))
     } else if (this.hlr instanceof types.RelRestriction) {
       this.operation = new Restriction(this.hlr)
-      this.addNode(new Node(this.hlr.args))
+      this.addNode(new Node(this.hlr.args, this.depth + 1))
     } else if (this.hlr instanceof types.RelProjection) {
       this.operation = new Projection(this.hlr)
-      this.addNode(new Node(this.hlr.args))
+      this.addNode(new Node(this.hlr.args, this.depth + 1))
     } else if (this.hlr instanceof types.RelRename) {
       this.operation = new Rename(this.hlr)
-      this.addNode(new Node(this.hlr.args))
+      this.addNode(new Node(this.hlr.args, this.depth + 1))
     } else if (this.hlr instanceof types.RelOperation) {
       this.operation = new Operation(this.hlr)
-      this.addNode(new Node(this.hlr.lhs as types.HighLevelRelationish))
-      this.addNode(new Node(this.hlr.rhs as types.HighLevelRelationish))
+      this.addNode(new Node(this.hlr.lhs as types.HighLevelRelationish, this.depth + 1))
+      this.addNode(new Node(this.hlr.rhs as types.HighLevelRelationish, this.depth + 1))
     } else {
       console.error("Unknown type", this.hlr)
       throw new Error("Unknown op type")
