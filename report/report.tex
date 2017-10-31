@@ -21,6 +21,91 @@
 
 \maketitle
 
+\section{The Compiler}
+
+In order to parse SQL commands, we are using a parsing library called \textbf{PEG.js},
+which allows us to express a/n SQL syntax as a \emph{Parsing Expression Grammar} (PEG),
+and build that grammar into a JavaScript parser.
+The grammar was initially structured after Phoenix's SQL grammar,
+but generally follows PostgreSQL's syntax and the corresponding ANSI SQL standard.
+
+\subsection{Grammar Rules}
+
+\emph{The grammar is defined in} \verb|src/parser/peg/sql.pegjs|. \\
+
+Parsing starts out with the \verb|Statements| rule, which is a semicolon
+delimited list of SQL \verb|Statement|s.
+A \verb|Statement| can be either a \verb|Select| or \verb|SelectPair|.
+\verb|Select| is broken up into 6 clauses: \verb|TargetClause|, \verb|FromClause|,
+\verb|WhereClause|, \verb|GroupByClause|, \verb|HavingClause| and \verb|OrderByClause|.
+These correspond to all the possibilities of a valid SQL Select statement.
+A \verb|SelectPair| is two seperate \verb|Select| clauses paired together with a
+``UNION'', ``INTERSECT'', or ``EXCEPT'' set operation.
+You can also apply the ``ALL'' or ``DISTINCT'' modifier to the pair.
+
+The \verb|TargetClause| can have the optional ``DISTINCT'' or ``ALL'' modifier
+followed by ``*'' (to allow everything) or a \verb|TargetList|, a
+comma-delimited list of \verb|TargetItem|s.
+A \verb|TargetItem| is a column-like specifier; it can be a relation name with ``.*''
+or an \verb|Operand| with optional alias.
+
+\verb|FromClause| aliases \verb|RelationList|, a list of comma-delimited
+relation-like fields, each of which may be a table name (with optional alias)
+or a \verb|Join|. A \verb|JOIN| is a pair of relation-like fields joined by
+a join-type (``CROSS'', ``INNER'', ``LEFT'', etc) followed by an optional
+join-condition (``ON \verb|Condition|'' or ``USING (\verb|TargetList|)'').
+
+\verb|WhereClause| and \verb|HavingClause| are \verb|Condition|s.
+The types of \verb|Condition|s are: ``OR'' and ``AND'' (which join two
+\verb|Condition|s); comparison, ``LIKE'', and ``BETWEEN'' (which join two
+\verb|Operands|); and ``IN'' and ``EXISTS'' (which take \verb|Select|-like
+arguments).
+
+\verb|GroupByClause| is simply a \verb|TargetList| like the target clause.
+\verb|OrderByClause| is a comma-delimited list of \verb|Operand|s, each optionally
+with an ordering-condition (``ASC'', ``DESC'' ``USING \ldots'').
+
+An \verb|Operand| is a \verb|Term| optionally joined to other \verb|Operand|s
+by value operations (e.g. arithmetic or concatenation).
+A \verb|Term| is a \verb|Literal|, aggregate function, or column reference.
+\verb|Literal|s include numeric literals, booleans literals, and string literals
+(single-quoted).
+
+A \verb|Name|, which might refer to an operand or relation, is denoted by a
+bare-identifier (\verb|/[a-z_][a-z0-9_]*/| and not a \verb|ReservedWord|) or any
+string quoted with double-quotes (\verb|"..."|) or backticks (\verb|`...`|).
+
+Both comment forms are supported: starting with \verb|--| and consuming the
+rest of the line, and C-style starting with \verb|/*| and ending at \verb|*/|.
+Both are permitted anywhere whitespace is.
+
+The \verb|ReservedWord| rule contains 340 keywords that the ISO/ANSI SQL:2008
+standard states are \textbf{never allowed as identifiers}. This set is almost
+certainly overkill, as most SQL implementations only reserve a \emph{small}
+fraction of it. It is also excessively large, making up over $^1/_3$ of the
+grammar's sourcecode and $\textbf{90\%}$ of the uncompressed compiled grammar.
+
+\subsection{Interpretation}
+
+\emph{Classes and data structures discussed in this section defined in}
+      \verb|src/parser/types.ts|. \\
+
+While parsing the grammar, the PEG.js parser calls JavaScript classes that
+correspond to SQL concepts.
+These classes include \verb|SqlSelect|, \verb|SqlJoin|, \verb|SqlConditional|,
+\verb|SqlLiteral|, etc.
+This generates an object-oriented data structure---resembling a tree---that
+represents the ``SQL Structure''.
+
+Once the SQL Structure is generated it can be converted into JavaScript classes
+that correspond to Relational Algebra concepts.
+These classes include \verb|RelRestriction|, \verb|RelProjection|,
+\verb|RelJoin|, \verb|RelConditional|, etc.
+This generates a data structure---more closely resembling a tree than before---
+that represents the ``Relational Algebra Structure''.
+
+\emph{Top-level functions for parsing/conversion defined in} \verb|src/parser/parsing.ts|,
+\emph{with conversion implementation functions defined in} \verb|src/parser/sqlToRel.ts|.
 
 
 
