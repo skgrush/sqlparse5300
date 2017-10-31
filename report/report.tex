@@ -1,6 +1,16 @@
 \documentclass{article}
 \usepackage[margin=1in]{geometry}
 
+\usepackage[T1]{fontenc}
+
+\usepackage{color}
+\definecolor{lightgray}{rgb}{0.95, 0.95, 0.95}
+\definecolor{darkgray}{rgb}{0.4, 0.4, 0.4}
+\definecolor{purple}{rgb}{0.65, 0.12, 0.82}
+\definecolor{editorGray}{rgb}{0.95, 0.95, 0.95}
+\definecolor{editorOcher}{rgb}{1, 0.5, 0} % #FF7F00 -> rgb(239, 169, 0)
+\definecolor{editorGreen}{rgb}{0, 0.5, 0} % #007C00 -> rgb(0, 124, 0)
+
 \usepackage{titling}
 \title{CS 5300 Project \#1}
 \author{Jared Rainwater \& Samuel K. Grush}
@@ -12,14 +22,49 @@
 \rhead{\theauthor}
 \cfoot{Page \thepage}
 
+\usepackage{upquote}
 \usepackage{listings}
+\input{lstdefines}
 
+\lstset{%
+    % Basic design
+    backgroundcolor=\color{editorGray},
+    basicstyle={\small\ttfamily},
+    frame=l,
+    % Line numbers
+    xleftmargin={0.75cm},
+    numbers=left,
+    stepnumber=1,
+    firstnumber=1,
+    numberfirstline=true,
+    % Code design
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{darkgray}\ttfamily,
+    ndkeywordstyle=\color{editorGreen}\bfseries,
+    stringstyle=\color{editorOcher},
+    % Code
+    language=TypeScript,
+    alsodigit={.:;},
+    tabsize=2,
+    showtabs=false,
+    showspaces=false,
+    showstringspaces=false,
+    extendedchars=true,
+    breaklines=true,
+}
 
+\newcommand{\filelisting}[2][TypeScript]{%
+  \subsubsection{\texttt{\protect#2}}
+  \lstinputlisting[language=#1, label={lst:#2}]{../#2}
+  \pagebreak[3]\-\\
+}
 
 
 \begin{document}
 
 \maketitle
+
+\tableofcontents
 
 \section{The Compiler}
 
@@ -108,5 +153,42 @@ that represents the ``Relational Algebra Structure''.
 \emph{with conversion implementation functions defined in} \verb|src/parser/sqlToRel.ts|.
 
 
+\pagebreak
+
+\section{Source Code}
+
+{\large \textbf{All of this code is available at} \verb|https://github.com/SKGrush/sqlparse5300|}
+
+\subsection{\texttt{src/}}
+
+\filelisting[TypeScript]{src/index.ts}
+\filelisting[ReactTypeScript]{src/Main.tsx}
+
+\subsection{\texttt{src/components}}
+
+\filelisting[ReactTypeScript]{src/components/QueryInput.tsx}
+\filelisting[ReactTypeScript]{src/components/RelationsInput.tsx}
+\filelisting[ReactTypeScript]{src/components/TestCase.tsx}
+\filelisting[ReactTypeScript]{src/components/Tests.tsx}
+\filelisting[ReactTypeScript]{src/components/tree.tsx}
+
+\subsection{\texttt{src/parser}}
+
+\filelisting{src/parser/parsing.ts}
+\filelisting[ReactTypeScript]{src/parser/relationalText.tsx}
+\filelisting{src/parser/sqlToRel.ts}
+\filelisting{src/parser/tests.ts}
+\filelisting{src/parser/types.ts}
+
+\subsection{\texttt{src/parser/peg}}
+
+\filelisting[pegjs]{src/parser/peg/sql.pegjs}
+\filelisting[pegjs]{src/parser/peg/relations.pegjs}
+
+\subsection{\texttt{src/query\_tree}}
+
+\filelisting[TypeScript]{\detokenize{src/query_tree/node.ts}}
+\filelisting[TypeScript]{\detokenize{src/query_tree/operation.ts}}
+\filelisting[TypeScript]{\detokenize{src/query_tree/parse.ts}}
 
 \end{document}
