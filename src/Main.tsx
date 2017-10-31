@@ -10,8 +10,6 @@ import RelationsInput, {RelationsInputOutput} from './components/RelationsInput'
 import QueryInput from './components/QueryInput'
 import Tests from './components/Tests'
 import TestCase from './components/TestCase'
-import parseSQLToTree from './query_tree/parse'
-import {HighLevelRelationish} from './parser/types'
 
 export interface MainState {
   queryInputText: string
@@ -38,23 +36,6 @@ export default class Main extends React.Component<any, MainState> {
 
     this.onRelationsInputUpdate = this.onRelationsInputUpdate.bind(this)
     this.onQueryInputUpdate = this.onQueryInputUpdate.bind(this)
-
-    const testRelationalData = {
-      "type": "projection",
-      "columns": [
-        {
-          "type": "relcolumn",
-          "relation": {
-            "type": "relrelation",
-            "name": "Sailors"
-          },
-          "name": "sname",
-          "as": null
-        }
-      ]
-    }
-    let node = parseSQLToTree(testRelationalData as HighLevelRelationish)
-    console.log(node)
   }
 
   onRelationsInputUpdate(output: RelationsInputOutput) {
@@ -83,47 +64,6 @@ export default class Main extends React.Component<any, MainState> {
     })
 
   }
-
-  /*parseQuery(): void {
-    const {queryInputText, catalog} = this.state
-
-    let queryJSON
-    let relJSON
-
-    const tracer = new Tracer(queryInputText, {
-      useColor: false,
-      showTrace: true
-    })
-    try {
-      queryJSON = parseSql(queryInputText, {tracer})
-      let root = parseSQLToTree(queryJSON)
-      this.setState({
-        queryJSON,
-        root,
-        status: "Query parsed; Generating relational algebra..."
-      })
-    } catch (ex) {
-      const err: SqlSyntaxError = ex
-      this.setState({
-        status: `Error Parsing Query:  ${err.message}`,
-        debug: tracer.getParseTreeString()
-      })
-      throw err
-    }
-
-    try {
-      relJSON = sqlToRelationalAlgebra(queryJSON, catalog as Catalog)
-      this.setState({
-        relJSON,
-        status: "Generated relational algebra"
-      })
-    } catch (ex) {
-      this.setState({
-        status: `Error Generating Relational Algebra:  ${ex.message}`,
-      })
-      throw ex
-    }
-  }*/
 
   render() {
     return (

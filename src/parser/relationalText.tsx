@@ -63,26 +63,39 @@ export function getSymbol(input: string) {
   }
 }
 
-export function htmlRelRestriction(res: types.RelRestriction) {
+export function htmlARGS(args: types.HighLevelRelationish, noargs = false) {
+  if (noargs) {
+    return null
+  } else {
+    const ARGS = htmlHLR(args)
+    return (
+      <span className="args">
+        (
+          <span className="HLR">
+            {ARGS}
+          </span>
+        )
+      </span>
+    )
+  }
+}
+
+export function htmlRelRestriction(res: types.RelRestriction, noargs = false) {
   const SYM = getSymbol('restriction')
   const COND = htmlRelConditional(res.conditions)
-  const ARGS = htmlHLR(res.args)
+  const ARGS = htmlARGS(res.args, noargs)
   return (
     <span className="RelRestriction">
       <span className="operator">{SYM}</span>
       <sub className="condition">
         {COND}
       </sub>
-      (
-        <span className="HLR">
-          {ARGS}
-        </span>
-      )
+      {ARGS}
     </span>
   )
 }
 
-export function htmlRelProjection(res: types.RelProjection) {
+export function htmlRelProjection(res: types.RelProjection, noargs = false) {
   const SYM = getSymbol('projection')
   const COLUMNS: Array<string|HTMLSpanElement> = []
   res.columns.forEach((col, idx) => {
@@ -95,18 +108,14 @@ export function htmlRelProjection(res: types.RelProjection) {
     else
       COLUMNS.push(col)
   })
-  const ARGS = htmlHLR(res.args)
+  const ARGS = htmlARGS(res.args, noargs)
   return (
     <span className="RelProjection">
       <span className="operator">{SYM}</span>
       <sub className="columns">
         {COLUMNS}
       </sub>
-      (
-        <span className="HLR">
-          {ARGS}
-        </span>
-      )
+      {ARGS}
     </span>
   )
 }
@@ -169,11 +178,11 @@ export function getName(thing) {
   throw new Error("unexpected thing to getName")
 }
 
-export function htmlRelRename(ren: types.RelRename) {
+export function htmlRelRename(ren: types.RelRename, noargs = false) {
   const SYM = getSymbol('rename')
   const INPUT = getName(ren.input)
   const OUTPUT = ren.output
-  const ARGS = htmlHLR(ren.args as types.HighLevelRelationish)
+  const ARGS = htmlARGS(ren.args, noargs)
 
   return (
     <span className="RelRename">
@@ -181,11 +190,7 @@ export function htmlRelRename(ren: types.RelRename) {
       <sub className="condition">
         {OUTPUT} {getSymbol('rename-divider')} {INPUT}
       </sub>
-      (
-        <span className="HLR">
-          {ARGS}
-        </span>
-      )
+      {ARGS}
     </span>
   )
 }
@@ -199,18 +204,26 @@ export function htmlRelRelation(rel: types.RelRelation) {
   )
 }
 
-export function htmlRelJoin(join: types.RelJoin) {
-  let joinSymbol
-  let cond
+export function relJoinHelper(join: types.RelJoin): [string, JSX.Element | null] {
   if (typeof(join.condition) === 'string') {
-    joinSymbol = getSymbol(join.condition)
-    cond = null
+    return [getSymbol(join.condition), null]
   } else if (join.condition instanceof types.RelConditional) {
-    joinSymbol = getSymbol('join')
-    cond = htmlRelConditional(join.condition)
+    let cond = htmlRelConditional(join.condition)
+    if (cond) {
+      cond = (
+        <sub className="condition">
+          {cond}
+        </sub>
+      )
+    }
+    return [getSymbol('join'), cond]
   } else {
     throw new Error(`unknown RelJoin condition ${join.condition}`)
   }
+}
+
+export function htmlRelJoin(join: types.RelJoin) {
+  const [joinSymbol, cond] = relJoinHelper(join)
   const LHS = htmlHLR(join.lhs)
   const RHS = htmlHLR(join.rhs)
 
@@ -218,13 +231,7 @@ export function htmlRelJoin(join: types.RelJoin) {
     <span className="RelJoin">
       {LHS}
       <span className="operator">{joinSymbol}</span>
-      {
-        cond && (
-          <sub className="condition">
-            {cond}
-          </sub>
-        )
-      }
+      {cond}
       {RHS}
     </span>
   )

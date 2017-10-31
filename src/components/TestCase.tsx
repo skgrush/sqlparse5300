@@ -8,7 +8,6 @@ import {htmlHLR} from '../parser/relationalText'
 
 import {Projection} from '../query_tree/operation'
 import Node from '../query_tree/node'
-import parseSQLToTree from '../query_tree/parse'
 import Tree from '../components/tree'
 
 interface TestCaseProps {
