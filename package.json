@@ -11,6 +11,7 @@
     "@types/react-dom": "^16.0.2",
     "@types/react-json-pretty": "^1.3.2",
     "css-loader": "^0.28.7",
+    "d3": "^4.11.0",
     "node-sass": "^4.5.3",
     "pegjs-backtrace": "^0.1.1",
     "react": "^16.0.0",
@@ -20,6 +21,7 @@
     "style-loader": "^0.19.0"
   },
   "devDependencies": {
+    "@types/d3": "^4.11.0",
     "awesome-typescript-loader": "^3.2.3",
     "pegjs": "^0.10.0",
     "source-map-loader": "^0.2.2",
@@ -34,7 +36,6 @@
     "build-parsers": "yarn run build-sql-parser && yarn run build-relations-parser",
     "build-webpack": "webpack",
     "build": "yarn run build-parsers && yarn run build-webpack",
-
     "build-sql-parser-trace": "pegjs --trace --plugin ./node_modules/ts-pegjs/src/tspegjs --extra-options-file src/parser/peg/pegconfig.json -o src/parser/peg/sql.ts src/parser/peg/sql.pegjs",
     "build-relations-parser-trace": "pegjs --trace --plugin ./node_modules/ts-pegjs/src/tspegjs --extra-options-file src/parser/peg/pegconfig.json -o src/parser/peg/relations.ts src/parser/peg/relations.pegjs",
     "build-parsers-trace": "yarn run build-sql-parser-trace && yarn run build-relations-parser-trace",
