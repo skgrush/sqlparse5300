@@ -170,3 +170,5 @@ WHERE     S.age > 18
 GROUP BY  S.rating
 HAVING    Count (*) > 1`
 ]
+
+export const testResults: Array<{queryJSON, relAlJSON}> = []

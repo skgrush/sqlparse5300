@@ -16,6 +16,7 @@ interface TestCaseProps {
   doRun: boolean
   anchor: string
   name?: string
+  postResult(queryJSON, relAlJSON)
 }
 
 interface TestCaseState {
@@ -147,7 +148,8 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       color,
       tscolor,
       debug
-     })
+    })
+    this.props.postResult(queryJSON, relAlJSON)
   }
 
   render() {

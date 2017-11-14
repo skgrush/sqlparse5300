@@ -2,7 +2,7 @@ import * as React from "react"
 
 import {Catalog} from '../parser/types'
 import TestCase from './TestCase'
-import {selectTests} from "../parser/tests"
+import {selectTests, testResults} from "../parser/tests"
 
 export function getTestName(testStr: string) {
   if (testStr.startsWith('--'))
@@ -49,6 +49,10 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
       })
   }
 
+  postResult(index: number, queryJSON, relAlJSON) {
+    testResults[index] = {queryJSON, relAlJSON}
+  }
+
   render() {
     return (
       <div id="tests-div">
@@ -81,6 +85,7 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
                 key={idx}
                 anchor={`q${idx}`}
                 name={this.state.queryNames[idx] || undefined}
+                postResult={this.postResult.bind(this, idx)}
               />
             ))
           }
