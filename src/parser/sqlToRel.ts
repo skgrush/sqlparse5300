@@ -1,17 +1,17 @@
 
-import * as types from './types'
+import {Rel, Sql, Catalog} from './types'
 
-type ColumnValueType = types.RelColumn | types.RelFunction | string
+type ColumnValueType = Rel.Column | Rel.RelFunction | string
 
-type RelationLookup = Map<string, types.RelRelation>
+type RelationLookup = Map<string, Rel.Relation>
 
 /* bubble a join/relation up to the calling function, also returning
    the 'realOperation' that took place */
 class BubbleUp<T> {
   realOperation: T
-  relationish: types.HighLevelRelationish
+  relationish: Rel.HighLevelRelationish
 
-  constructor(realOp: T, relationish: types.HighLevelRelationish) {
+  constructor(realOp: T, relationish: Rel.HighLevelRelationish) {
     this.realOperation = realOp
     this.relationish = relationish
   }
@@ -28,20 +28,20 @@ class RenameBubbleUp {
 }
 
 class ColumnLookup {
-  readonly map: Map<string, types.RelColumn[]>
-  readonly catalog: types.Catalog
+  readonly map: Map<string, Rel.Column[]>
+  readonly catalog: Catalog.Catalog
   readonly relations: RelationLookup
 
-  constructor(catalog: types.Catalog, relations: RelationLookup, init?) {
+  constructor(catalog: Catalog.Catalog, relations: RelationLookup, init?) {
     this.map = new Map(init)
     this.catalog = catalog
     this.relations = relations
   }
 
-  addAlias(name: string, target: types.RelColumn) {
+  addAlias(name: string, target: Rel.Column) {
     const cols = this.map.get(name)
-    if (!(target instanceof types.RelColumn)) {
-      target = new types.RelColumn(null, target, name)
+    if (!(target instanceof Rel.Column)) {
+      target = new Rel.Column(null, target, name)
     }
     if (!cols)
       this.map.set(name, [target])
@@ -50,19 +50,19 @@ class ColumnLookup {
     return target
   }
 
-  lookup(columnName: string, relationName?: string, as?: string): types.RelColumn {
+  lookup(columnName: string, relationName?: string, as?: string): Rel.Column {
     if (relationName) {
       // column references a relation
       if (!this.relations.has(relationName)) {
         throw new Error(`Unknown relation "${relationName}"`)
       }
-      const relation = this.relations.get(relationName) as types.RelRelation
-      const catRelation = this.catalog.relations.get(relation.name) as types.Relation
+      const relation = this.relations.get(relationName) as Rel.Relation
+      const catRelation = this.catalog.relations.get(relation.name) as Catalog.Relation
       // if(!catRelation)
       //   throw new Error(`${relationName} not in catalog`)
       if (catRelation.columns.has(columnName))
-        return new types.RelColumn(relation,
-                                   catRelation.columns.get(columnName) as types.Column,
+        return new Rel.Column(relation,
+                                   catRelation.columns.get(columnName) as Catalog.Column,
                                    as)
       else
         throw new Error(`${catRelation.name} doesn't contain ${columnName}`)
@@ -70,7 +70,7 @@ class ColumnLookup {
       // implicit relation reference
       if (this.map.has(columnName)) {
         // already in the map
-        const cols = this.map.get(columnName) as types.RelColumn[]
+        const cols = this.map.get(columnName) as Rel.Column[]
         if (cols.length > 1)
           throw new Error(`Ambiguous column name reference "${columnName}"`)
 
@@ -84,14 +84,14 @@ class ColumnLookup {
         // if (!this.catalog.relations.has(val.name)) {
         //   throw new Error(`${val.name} not in catalog`)
         // }
-        const catRel = this.catalog.relations.get(val.name) as types.Relation
+        const catRel = this.catalog.relations.get(val.name) as Catalog.Relation
         console.info(`${val.name} in catalog, looking for ${columnName}`)
         if (!catRel.columns.has(columnName))
           continue
         console.info(`found`)
         console.groupEnd()
-        const col = catRel.columns.get(columnName) as types.Column
-        return new types.RelColumn(val, col, as)
+        const col = catRel.columns.get(columnName) as Catalog.Column
+        return new Rel.Column(val, col, as)
       }
       console.info(`not found`)
       console.groupEnd()
@@ -100,29 +100,29 @@ class ColumnLookup {
   }
 }
 
-function _joinArgHelper(hs: types.SqlJoin | types.SqlRelation,
+function _joinArgHelper(hs: Sql.Join | Sql.Relation,
                         relations: RelationLookup,
                         columns: ColumnLookup,
-                        catalog: types.Catalog,
-                        arg: types.SqlJoin,
-                        side): types.RelRelationish {
-  if (hs instanceof types.SqlJoin)
+                        catalog: Catalog.Catalog,
+                        arg: Sql.Join,
+                        side): Rel.Relationish {
+  if (hs instanceof Sql.Join)
     return fromJoin(hs, relations, columns, catalog)
-  else if (hs instanceof types.SqlRelation)
-    return fromRelation(hs, relations, columns, catalog) as types.RelRelation
+  else if (hs instanceof Sql.Relation)
+    return fromRelation(hs, relations, columns, catalog) as Rel.Relation
   console.error(`bad join arg ${side}`, arg, "lookup:", relations)
   throw new Error("Bad join argument lhs")
 }
 
-function fromJoin(arg: types.SqlJoin,
+function fromJoin(arg: Sql.Join,
                   relations: RelationLookup,
                   columns: ColumnLookup,
-                  catalog: types.Catalog): types.RelJoin {
+                  catalog: Catalog.Catalog): Rel.Join {
   const lhs = _joinArgHelper(arg.lhs, relations, columns, catalog, arg, 'left')
   const rhs = _joinArgHelper(arg.rhs, relations, columns, catalog, arg, 'right')
   let cond: any = null
   if (arg.condition) {
-    if (arg.condition instanceof types.SqlConditional)
+    if (arg.condition instanceof Sql.Conditional)
       cond = fromConditional(arg.condition, relations, columns, catalog)
     else if (Array.isArray(arg.condition) && arg.condition.length === 2)
       cond = fromTargetList(arg.condition[1], relations, columns, catalog)
@@ -148,18 +148,18 @@ function fromJoin(arg: types.SqlJoin,
     }
   }
 
-  const J = new types.RelJoin(lhs, rhs, cond)
+  const J = new Rel.Join(lhs, rhs, cond)
   return J
 }
 
-function fromColumn(arg: types.SqlColumn,
+function fromColumn(arg: Sql.Column,
                     relations: RelationLookup,
                     columns: ColumnLookup,
-                    catalog: types.Catalog
+                    catalog: Catalog.Catalog
   ): RenameBubbleUp | ColumnValueType {
   const alias = arg.alias
   let target
-  if (arg.target instanceof types.SqlColumn) {
+  if (arg.target instanceof Sql.Column) {
     // column of column; either rename it or return target
     target = fromColumn(arg.target, relations, columns, catalog)
     if (!alias)
@@ -173,9 +173,9 @@ function fromColumn(arg: types.SqlColumn,
     target = columns.lookup(arg.target,
                             arg.relation || undefined,
                             arg.as || undefined)
-  } else if (arg.target instanceof types.SqlLiteral) {
+  } else if (arg.target instanceof Sql.Literal) {
     target = fromLiteral(arg.target)
-  } else if (arg.target instanceof types.SqlAggFunction) {
+  } else if (arg.target instanceof Sql.AggFunction) {
     target = fromAggFunction(arg.target, relations, columns, catalog)
   } else {
     throw new Error("Unexpected type in column")
@@ -188,10 +188,10 @@ function fromColumn(arg: types.SqlColumn,
   return target
 }
 
-function fromTargetList(targetColumns: types.SqlColumn[],
+function fromTargetList(targetColumns: Sql.Column[],
                         relationLookup: RelationLookup,
                         columnLookup: ColumnLookup,
-                        catalog: types.Catalog
+                        catalog: Catalog.Catalog
   ): [ColumnValueType[], RenameBubbleUp[]] {
   console.info("fromTargetList:", targetColumns)
   const renames: RenameBubbleUp[] = []
@@ -209,16 +209,16 @@ function fromTargetList(targetColumns: types.SqlColumn[],
   return [cols, renames]
 }
 
-function fromRelation(arg: types.SqlRelation,
+function fromRelation(arg: Sql.Relation,
                       relations: RelationLookup,
                       columns: ColumnLookup,
-                      catalog: types.Catalog): types.RelRename | types.RelRelation | types.RelJoin {
+                      catalog: Catalog.Catalog): Rel.Rename | Rel.Relation | Rel.Join {
   if (typeof(arg.target) === 'string') {
     let relat
     if (relations.has(arg.target))
       relat = relations.get(arg.target)
     else if (catalog.relations.has(arg.target)) {
-      relat = new types.RelRelation(arg.target)
+      relat = new Rel.Relation(arg.target)
       relations.set(arg.target, relat)
     } else {
       console.error(`Unknown relation ${arg.target}`, arg, relations)
@@ -226,42 +226,42 @@ function fromRelation(arg: types.SqlRelation,
     }
 
     if (arg.alias) {
-      const ren = new types.RelRename(relat, arg.alias, relat)
+      const ren = new Rel.Rename(relat, arg.alias, relat)
       relations.set(arg.alias, relat)
       return ren
     }
     return relat
-  } else if (arg.target instanceof types.SqlRelation) {
-    const relat = fromRelation(arg.target, relations, columns, catalog) as types.RelRelation
+  } else if (arg.target instanceof Sql.Relation) {
+    const relat = fromRelation(arg.target, relations, columns, catalog) as Rel.Relation
     if (!arg.alias)
       return relat
-    const ren = new types.RelRename(relat, arg.alias, relat)
+    const ren = new Rel.Rename(relat, arg.alias, relat)
     relations.set(arg.alias, relat)
     return ren
-  } else if (arg.target instanceof types.SqlJoin) {
+  } else if (arg.target instanceof Sql.Join) {
     const J = fromJoin(arg.target, relations, columns, catalog)
     if (!arg.alias)
       return J
     else
       throw new Error("Renaming joins not supported ")
-    // const ren = new types.RelRename()
+    // const ren = new Rel.Rename()
   } else {
     console.error("bad arg.target type", arg, "lookup:", relations)
     throw new Error("bad arg.target type")
   }
 }
 
-function fromRelationList(arg: types.RelationList,
+function fromRelationList(arg: Sql.RelationList,
                           relations: RelationLookup,
                           columns: ColumnLookup,
-                          catalog: types.Catalog) {
-  if (arg instanceof types.SqlRelation)
+                          catalog: Catalog.Catalog) {
+  if (arg instanceof Sql.Relation)
     return fromRelation(arg, relations, columns, catalog)
   else
     return fromJoin(arg, relations, columns, catalog)
 }
 
-function fromLiteral(lit: types.SqlLiteral) {
+function fromLiteral(lit: Sql.Literal) {
   switch (lit.literalType) {
     case 'string':
       return `'${lit.value}'`
@@ -274,54 +274,54 @@ function fromLiteral(lit: types.SqlLiteral) {
   }
 }
 
-function fromAggFunction(agg: types.SqlAggFunction,
+function fromAggFunction(agg: Sql.AggFunction,
                          rels: RelationLookup,
                          cols: ColumnLookup,
-                         cata: types.Catalog) {
+                         cata: Catalog.Catalog) {
   switch (agg.fname) {
     case 'count':
-      if (agg.expr === '*' || (agg.expr as types.TargetClause).targetlist === '*')
-        return new types.RelFunction('count', '*')
+      if (agg.expr === '*' || (agg.expr as Sql.TargetClause).targetlist === '*')
+        return new Rel.RelFunction('count', '*')
       else
         throw new Error("Counting columns not supported")
     case 'avg':
     case 'max':
     case 'min':
     case 'sum':
-      if (!(agg.expr instanceof types.SqlColumn))
+      if (!(agg.expr instanceof Sql.Column))
         throw new Error(`non-column arguments to aggregates not supported`)
-      const expr = fromColumn(agg.expr, rels, cols, cata) as types.RelColumn
-      return new types.RelFunction(agg.fname, expr)
+      const expr = fromColumn(agg.expr, rels, cols, cata) as Rel.Column
+      return new Rel.RelFunction(agg.fname, expr)
     default:
       throw new Error(`Unknown aggregate function ${agg.fname}`)
   }
 }
 
-function fromOperation(arg: types.SqlOperation,
+function fromOperation(arg: Sql.Operation,
                        rels: RelationLookup,
                        cols: ColumnLookup,
-                       cata: types.Catalog) {
+                       cata: Catalog.Catalog) {
   const lhs = _condArgHelper(arg.lhs, rels, cols, cata)
   const rhs = _condArgHelper(arg.rhs, rels, cols, cata)
-  return new types.RelOperation(arg.op, lhs, rhs)
+  return new Rel.Operation(arg.op, lhs, rhs)
 }
 
 /* takes an Operand argument */
 function _condArgHelper(hs, rels, cols, cata) {
   if (hs instanceof Array)
     return fromTargetList(hs, rels, cols, cata)[0]
-  if (hs instanceof types.SqlConditional)
+  if (hs instanceof Sql.Conditional)
     return fromConditional(hs, rels, cols, cata)
-  else if (hs instanceof types.SqlSelect)
+  else if (hs instanceof Sql.Select)
     return fromSqlSelect(hs, cata)
   // Operand
-  else if (hs instanceof types.SqlLiteral)
+  else if (hs instanceof Sql.Literal)
     return fromLiteral(hs)
-  else if (hs instanceof types.SqlAggFunction)
+  else if (hs instanceof Sql.AggFunction)
     return fromAggFunction(hs, rels, cols, cata)
-  else if (hs instanceof types.SqlColumn)
+  else if (hs instanceof Sql.Column)
     return fromColumn(hs, rels, cols, cata)
-  else if (hs instanceof types.SqlOperation)
+  else if (hs instanceof Sql.Operation)
     return fromOperation(hs, rels, cols, cata)
   else
     throw new Error(`Unknown conditional arg type ${hs}`)
@@ -329,7 +329,7 @@ function _condArgHelper(hs, rels, cols, cata) {
 
 function _handleSubquery(arg, lhs, op, relations, columns, catalog) {
 
-  const tmpRhs = (arg.rhs instanceof types.SqlSelectPair)
+  const tmpRhs = (arg.rhs instanceof Sql.SelectPair)
                   ? fromSelectPair(arg.rhs, catalog)
                   : fromSqlSelect(arg.rhs, catalog)
 
@@ -338,28 +338,28 @@ function _handleSubquery(arg, lhs, op, relations, columns, catalog) {
 
   // lhs = check-against
   // rhs = Selectish
-  if (!(tmpRhs instanceof types.RelProjection))
+  if (!(tmpRhs instanceof Rel.Projection))
     throw new Error("'in' subqueries must select columns")
 
   const rhsTarget = tmpRhs.columns
 
-  let conditional: types.RelConditional
+  let conditional: Rel.Conditional
   if (rhsTarget.length > 1)
     conditional = rhsTarget.reduce((L, R) =>
-                    new types.RelConditional(op, L, R), lhs)
+                    new Rel.Conditional(op, L, R), lhs)
   else
-    conditional = new types.RelConditional(op, lhs, rhsTarget[0])
+    conditional = new Rel.Conditional(op, lhs, rhsTarget[0])
 
-  return new BubbleUp<types.RelConditional>(conditional, tmpRhs.args)
+  return new BubbleUp<Rel.Conditional>(conditional, tmpRhs.args)
 }
 
-function fromConditional(arg: types.SqlConditional,
+function fromConditional(arg: Sql.Conditional,
                          relations: RelationLookup,
                          columns: ColumnLookup,
-                         catalog: types.Catalog
-  ): types.RelConditional | BubbleUp<types.RelConditional> {
+                         catalog: Catalog.Catalog
+  ): Rel.Conditional | BubbleUp<Rel.Conditional> {
   let binOp = true
-  let op: types.ThetaOp
+  let op: Rel.ThetaOp
   switch (arg.operation) {
     case 'not':
     case 'isnull':
@@ -406,13 +406,13 @@ function fromConditional(arg: types.SqlConditional,
         return tcond.target
       return tcond
     })
-    const cond = new types.RelConditional('in', lhs, rs)
+    const cond = new Rel.Conditional('in', lhs, rs)
     if (arg.not)
       throw new Error("'not' conditional is not supported")
     return cond
   }
-  if (arg.rhs instanceof types.SqlSelect ||
-      arg.rhs instanceof types.SqlSelectPair) {
+  if (arg.rhs instanceof Sql.Select ||
+      arg.rhs instanceof Sql.SelectPair) {
     return _handleSubquery(arg, lhs, op, relations, columns, catalog)
   }
   if (op === 'in') {
@@ -425,7 +425,7 @@ function fromConditional(arg: types.SqlConditional,
   if (rhs instanceof RenameBubbleUp)
     rhs = rhs.target
 
-  const condit = new types.RelConditional(op, lhs, rhs)
+  const condit = new Rel.Conditional(op, lhs, rhs)
 
   if (arg.not)
     throw new Error("'not' conditional is not supported")
@@ -443,47 +443,47 @@ function fromOrderings(orderings, rels, cols, cata) {
   })
 }
 
-export function fromSelectPair(selPair: types.SqlSelectPair,
-                               catalog: types.Catalog) {
+export function fromSelectPair(selPair: Sql.SelectPair,
+                               catalog: Catalog.Catalog) {
   const lhs = fromSqlSelect(selPair.lhs, catalog)
   let rhs
-  if (selPair.rhs instanceof types.SqlSelect)
+  if (selPair.rhs instanceof Sql.Select)
     rhs = fromSqlSelect(selPair.rhs, catalog)
   else
     rhs = fromSelectPair(selPair.rhs, catalog)
 
-  if (lhs instanceof types.RelProjection &&
-      rhs instanceof types.RelProjection) {
+  if (lhs instanceof Rel.Projection &&
+      rhs instanceof Rel.Projection) {
     if (lhs.columns.length !== rhs.columns.length)
       throw new Error(`Joining on unequal degrees: ` +
                       `${lhs.columns.length} vs ${rhs.columns.length}`)
     const newLhs = lhs.args
     const newRhs = rhs.args
     const newColumns = lhs.columns
-    const args = new types.RelOperation(selPair.pairing, newLhs, newRhs)
-    return new types.RelProjection(newColumns, args)
+    const args = new Rel.Operation(selPair.pairing, newLhs, newRhs)
+    return new Rel.Projection(newColumns, args)
   }
 
-  const operation = new types.RelOperation(selPair.pairing, lhs, rhs)
+  const operation = new Rel.Operation(selPair.pairing, lhs, rhs)
   return operation
 }
 
-function _renameReducer(arg: types.HighLevelRelationish, ren: RenameBubbleUp) {
-  return new types.RelRename(ren.target, ren.output, arg)
+function _renameReducer(arg: Rel.HighLevelRelationish, ren: RenameBubbleUp) {
+  return new Rel.Rename(ren.target, ren.output, arg)
 }
 
 function applyRenameBubbleUps(renames: RenameBubbleUp[],
-                              args: types.HighLevelRelationish) {
+                              args: Rel.HighLevelRelationish) {
     return renames.reduce(_renameReducer, args)
   }
 
-export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
+export function fromSqlSelect(select: Sql.Select, catalog: Catalog.Catalog) {
 
   // map names to the actual instances
   const relations = new Map()
   const columns = new ColumnLookup(catalog, relations)
 
-  let fromClause: types.HighLevelRelationish
+  let fromClause: Rel.HighLevelRelationish
       = fromRelationList(select.from, relations, columns, catalog)
 
   let targetColumns
@@ -504,8 +504,8 @@ export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
   if (select.where) {
     whereClause = fromConditional(select.where, relations, columns, catalog)
     if (whereClause instanceof BubbleUp) {
-      fromClause = new types.RelJoin(fromClause, whereClause.relationish, 'cross')
-      whereClause = whereClause.realOperation as types.RelConditional
+      fromClause = new Rel.Join(fromClause, whereClause.relationish, 'cross')
+      whereClause = whereClause.realOperation as Rel.Conditional
     }
   }
 
@@ -524,12 +524,12 @@ export function fromSqlSelect(select: types.SqlSelect, catalog: types.Catalog) {
   const orderBy = fromOrderings(select.orderBy, relations, columns, catalog)
 
   const Rest = whereClause
-      ? new types.RelRestriction(whereClause, fromClause)
+      ? new Rel.Restriction(whereClause, fromClause)
       : fromClause
 
   const Proj = targetColumns === '*'
       ? Rest
-      : new types.RelProjection(targetColumns, Rest)
+      : new Rel.Projection(targetColumns, Rest)
 
   return Proj
 }

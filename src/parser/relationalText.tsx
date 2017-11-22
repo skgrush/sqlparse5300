@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import * as types from './types'
+import {Rel, Sql, Catalog} from './types'
 
 export function getSymbol(input: string) {
   switch (input) {
@@ -63,7 +63,7 @@ export function getSymbol(input: string) {
   }
 }
 
-export function htmlARGS(args: types.HighLevelRelationish, noargs = false) {
+export function htmlARGS(args: Rel.HighLevelRelationish, noargs = false) {
   if (noargs) {
     return null
   } else {
@@ -80,7 +80,7 @@ export function htmlARGS(args: types.HighLevelRelationish, noargs = false) {
   }
 }
 
-export function htmlRelRestriction(res: types.RelRestriction, noargs = false) {
+export function htmlRelRestriction(res: Rel.Restriction, noargs = false) {
   const SYM = getSymbol('restriction')
   const COND = htmlRelConditional(res.conditions)
   const ARGS = htmlARGS(res.args, noargs)
@@ -95,15 +95,15 @@ export function htmlRelRestriction(res: types.RelRestriction, noargs = false) {
   )
 }
 
-export function htmlRelProjection(res: types.RelProjection, noargs = false) {
+export function htmlRelProjection(res: Rel.Projection, noargs = false) {
   const SYM = getSymbol('projection')
   const COLUMNS: Array<string|HTMLSpanElement> = []
   res.columns.forEach((col, idx) => {
     if (idx > 0)
       COLUMNS.push(",")
-    if (col instanceof types.RelColumn)
+    if (col instanceof Rel.Column)
       COLUMNS.push(htmlRelColumn(col, idx))
-    else if ((col as any) instanceof types.RelFunction)
+    else if ((col as any) instanceof Rel.RelFunction)
       COLUMNS.push(htmlRelFunction(col, idx))
     else
       COLUMNS.push(col)
@@ -120,7 +120,7 @@ export function htmlRelProjection(res: types.RelProjection, noargs = false) {
   )
 }
 
-export function htmlRelColumn(col: types.RelColumn, iter?: number) {
+export function htmlRelColumn(col: Rel.Column, iter?: number) {
 
   if (col.as) {
     return (
@@ -147,7 +147,7 @@ export function htmlRelColumn(col: types.RelColumn, iter?: number) {
   )
 }
 
-export function htmlRelFunction(funct: types.RelFunction, idx?) {
+export function htmlRelFunction(funct: Rel.RelFunction, idx?) {
   const NAME = funct.fname.toUpperCase()
   const EXPR = funct.expr === '*'
           ? '*'
@@ -166,19 +166,19 @@ export function htmlRelFunction(funct: types.RelFunction, idx?) {
 export function getName(thing) {
   if (typeof(thing) === 'string')
     return thing
-  if (thing instanceof types.RelRelation)
+  if (thing instanceof Rel.Relation)
     return thing.name
-  if (thing instanceof types.RelColumn)
+  if (thing instanceof Rel.Column)
     return thing.as || htmlRelColumn(thing)
-  if (thing instanceof types.RelFunction)
-    return htmlRelFunction(thing as types.RelFunction)
-  if (thing instanceof types.Column)
+  if (thing instanceof Rel.RelFunction)
+    return htmlRelFunction(thing as Rel.RelFunction)
+  if (thing instanceof Catalog.Column)
     return thing.name
   console.info("getName", thing)
   throw new Error("unexpected thing to getName")
 }
 
-export function htmlRelRename(ren: types.RelRename, noargs = false) {
+export function htmlRelRename(ren: Rel.Rename, noargs = false) {
   const SYM = getSymbol('rename')
   const INPUT = getName(ren.input)
   const OUTPUT = ren.output
@@ -195,7 +195,7 @@ export function htmlRelRename(ren: types.RelRename, noargs = false) {
   )
 }
 
-export function htmlRelRelation(rel: types.RelRelation) {
+export function htmlRelRelation(rel: Rel.Relation) {
   const NAME = rel.name
   return (
     <span className="RelRelation">
@@ -204,10 +204,10 @@ export function htmlRelRelation(rel: types.RelRelation) {
   )
 }
 
-export function relJoinHelper(join: types.RelJoin): [string, JSX.Element | null] {
+export function relJoinHelper(join: Rel.Join): [string, JSX.Element | null] {
   if (typeof(join.condition) === 'string') {
     return [getSymbol(join.condition), null]
-  } else if (join.condition instanceof types.RelConditional) {
+  } else if (join.condition instanceof Rel.Conditional) {
     let cond = htmlRelConditional(join.condition)
     if (cond) {
       cond = (
@@ -222,7 +222,7 @@ export function relJoinHelper(join: types.RelJoin): [string, JSX.Element | null]
   }
 }
 
-export function htmlRelJoin(join: types.RelJoin) {
+export function htmlRelJoin(join: Rel.Join) {
   const [joinSymbol, cond] = relJoinHelper(join)
   const LHS = htmlHLR(join.lhs)
   const RHS = htmlHLR(join.rhs)
@@ -237,7 +237,7 @@ export function htmlRelJoin(join: types.RelJoin) {
   )
 }
 
-export function htmlRelOperation(op: types.RelOperation) {
+export function htmlRelOperation(op: Rel.Operation) {
   const OPSYM = getSymbol(op.op)
   const LHS = htmlRelOperand(op.lhs as any)
   const RHS = htmlRelOperand(op.rhs as any)
@@ -251,25 +251,25 @@ export function htmlRelOperation(op: types.RelOperation) {
   )
 }
 
-export function htmlRelOperand(operand: types.RelOperandType) {
+export function htmlRelOperand(operand: Rel.OperandType) {
   if (typeof(operand) === 'string')
     return operand
-  if (operand instanceof types.RelFunction)
+  if (operand instanceof Rel.RelFunction)
     return htmlRelFunction(operand)
-  if (operand instanceof types.RelOperation)
+  if (operand instanceof Rel.Operation)
     return htmlRelOperation(operand)
-  if (operand instanceof types.RelColumn)
+  if (operand instanceof Rel.Column)
     return htmlRelColumn(operand)
   // throw new Error("Unexpected operand type")
   return htmlHLR(operand)
 }
 
-export function htmlRelConditional(cond: types.RelConditional) {
+export function htmlRelConditional(cond: Rel.Conditional) {
   const OPSYM = getSymbol(cond.operation)
-  const LHS = cond.lhs instanceof types.RelConditional
+  const LHS = cond.lhs instanceof Rel.Conditional
           ? htmlRelConditional(cond.lhs)
           : htmlRelOperand(cond.lhs)
-  const RHS = cond.rhs instanceof types.RelConditional
+  const RHS = cond.rhs instanceof Rel.Conditional
           ? htmlRelConditional(cond.rhs)
           : ( cond.rhs instanceof Array
               ? cond.rhs.map(htmlRelOperand)
@@ -289,18 +289,18 @@ export function htmlRelConditional(cond: types.RelConditional) {
   )
 }
 
-export function htmlHLR(hlr: types.HighLevelRelationish) {
-  if (hlr instanceof types.RelRestriction)
+export function htmlHLR(hlr: Rel.HighLevelRelationish) {
+  if (hlr instanceof Rel.Restriction)
     return htmlRelRestriction(hlr)
-  if (hlr instanceof types.RelProjection)
+  if (hlr instanceof Rel.Projection)
     return htmlRelProjection(hlr)
-  if (hlr instanceof types.RelRename)
+  if (hlr instanceof Rel.Rename)
     return htmlRelRename(hlr)
-  if (hlr instanceof types.RelOperation)
+  if (hlr instanceof Rel.Operation)
     return htmlRelOperation(hlr)
-  if (hlr instanceof types.RelRelation)
+  if (hlr instanceof Rel.Relation)
     return htmlRelRelation(hlr)
-  if (hlr instanceof types.RelJoin)
+  if (hlr instanceof Rel.Join)
     return htmlRelJoin(hlr)
   console.error("unknown HLR:", hlr)
   throw new Error("Unknown type passed to htmlHLR")
