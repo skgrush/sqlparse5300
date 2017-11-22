@@ -1,6 +1,7 @@
 import {OperationOps, PairingString, AggFuncName} from './index'
 import * as Catalog from './Catalog'
 
+export const AGGREGATION_TYPE = "aggregation"
 export const RESTRICTION_TYPE = "restriction"
 export const PROJECTION_TYPE  = "projection"
 export const RENAME_TYPE      = "rename"
@@ -65,6 +66,20 @@ export class RelFunction {
   }
 }
 
+export class Aggregation {
+  readonly type = AGGREGATION_TYPE
+  attributes: Column[]
+  functions: RelFunction[]
+  relation: HighLevelRelationish
+
+  constructor(attributes: Column[], functions: RelFunction[],
+              relation: HighLevelRelationish) {
+    this.attributes = attributes
+    this.functions = functions
+    this.relation = relation
+  }
+}
+
 export type ThetaOp = 'eq' | 'neq' | 'leq' | 'geq' | '<' | '>' | 'and' | 'or' |
                       'in'
 
@@ -82,7 +97,8 @@ export class Conditional {
   }
 }
 
-export type HighLevelRelationish = Relationish | Restriction | Projection | Rename | Operation
+export type HighLevelRelationish = Relationish | Restriction | Projection |
+                                   Rename | Operation | Aggregation
 
 export class Restriction {
   readonly type = RESTRICTION_TYPE

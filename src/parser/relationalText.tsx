@@ -14,6 +14,8 @@ export function getSymbol(input: string) {
     case '>':
       return input
 
+    case 'aggregation':
+      return "ℑ" // U+2111
     case 'restriction':
       return "σ"
     case 'projection':
@@ -80,6 +82,28 @@ export function htmlARGS(args: Rel.HighLevelRelationish, noargs = false) {
   }
 }
 
+export function htmlRelAggregation(agg: Rel.Aggregation) {
+  let attrs: JSX.Element | null = null
+  if (agg.attributes && agg.attributes.length)
+    attrs = (
+      <sub className="columns">
+        (
+          {htmlColumnList(agg.attributes)}
+        )
+      </sub>
+    )
+
+  return (
+    <span className="RelAggregation">
+      {attrs}
+      <span className="operator">{getSymbol('aggregation')}</span>
+      <sub className="functions">
+        {htmlColumnList(agg.functions)}
+      </sub>
+    </span>
+  )
+}
+
 export function htmlRelRestriction(res: Rel.Restriction, noargs = false) {
   const SYM = getSymbol('restriction')
   const COND = htmlRelConditional(res.conditions)
@@ -97,27 +121,32 @@ export function htmlRelRestriction(res: Rel.Restriction, noargs = false) {
 
 export function htmlRelProjection(res: Rel.Projection, noargs = false) {
   const SYM = getSymbol('projection')
-  const COLUMNS: Array<string|HTMLSpanElement> = []
-  res.columns.forEach((col, idx) => {
-    if (idx > 0)
-      COLUMNS.push(",")
-    if (col instanceof Rel.Column)
-      COLUMNS.push(htmlRelColumn(col, idx))
-    else if ((col as any) instanceof Rel.RelFunction)
-      COLUMNS.push(htmlRelFunction(col, idx))
-    else
-      COLUMNS.push(col)
-  })
   const ARGS = htmlARGS(res.args, noargs)
   return (
     <span className="RelProjection">
       <span className="operator">{SYM}</span>
       <sub className="columns">
-        {COLUMNS}
+        {htmlColumnList(res.columns)}
       </sub>
       {ARGS}
     </span>
   )
+}
+
+export function htmlColumnList(cols: Array<Rel.Column|Rel.RelFunction>
+  ): Array<string|JSX.Element> {
+  const columns: Array<string|JSX.Element> = []
+  cols.forEach((col, idx) => {
+    if (idx > 0)
+      columns.push(",")
+    if (col instanceof Rel.Column)
+      columns.push(htmlRelColumn(col, idx))
+    else if (col instanceof Rel.RelFunction)
+      columns.push(htmlRelFunction(col, idx))
+    else
+      columns.push(col)
+  })
+  return columns
 }
 
 export function htmlRelColumn(col: Rel.Column, iter?: number) {
