@@ -1,5 +1,5 @@
 import * as React from 'react'
-import Node from 'query_tree/node'
+import Node from '../query_tree/node'
 import '../styles/tree.scss'
 
 interface TreeProps {

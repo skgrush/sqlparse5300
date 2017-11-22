@@ -12,7 +12,7 @@ Reserves(sid:integer, bid:integer, day:date)
 `
 
 export interface RelationsInputOutput {
-  catalog: Catalog | null
+  catalog: Catalog.Catalog | null
   error: null | Error
   traceback: '' | string
 }
@@ -22,7 +22,7 @@ export interface RelationsInputProps {
 }
 
 interface RelationsInputState {
-  catalog: Catalog | null
+  catalog: Catalog.Catalog | null
   text: string
 }
 
@@ -48,7 +48,7 @@ export default class RelationsInput extends React.Component<RelationsInputProps,
       showTrace: true
     })
 
-    let catalog: Catalog|null = null
+    let catalog: Catalog.Catalog|null = null
     try {
       catalog = parseRelations(text, {tracer})
       this.props.onUpdate({ catalog, error: null, traceback: '' })

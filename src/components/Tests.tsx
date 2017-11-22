@@ -11,11 +11,11 @@ export function getTestName(testStr: string) {
 }
 
 interface TestsProps {
-  catalog: Catalog | null
+  catalog: Catalog.Catalog | null
 }
 
 interface TestsState {
-  catalog: Catalog | null
+  catalog: Catalog.Catalog | null
   doRun: boolean
   queryNames: string[]
 }
@@ -24,7 +24,7 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
   constructor(props) {
     super(props)
     this.state = {
-      catalog: props.Catalog,
+      catalog: props.catalog,
       doRun: false,
       queryNames: selectTests.map(getTestName)
     }

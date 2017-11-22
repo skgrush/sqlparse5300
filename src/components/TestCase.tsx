@@ -11,7 +11,7 @@ import Node from '../query_tree/node'
 import Tree from '../components/tree'
 
 interface TestCaseProps {
-  catalog: Catalog | null
+  catalog: Catalog.Catalog | null
   queryInputText: string
   doRun: boolean
   anchor: string
@@ -74,7 +74,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
 
   run(props: TestCaseProps = this.props) {
 
-    const catalog = props.catalog as Catalog
+    const catalog = props.catalog as Catalog.Catalog
 
     const tracer = new Tracer(props.queryInputText, {
       useColor: false,
