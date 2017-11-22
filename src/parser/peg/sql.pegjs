@@ -29,7 +29,7 @@ SelectPair
     spec:( "ALL"i __ / "DISTINCT"i __ )?
     rhs:( Selectish )
   {
-    return new SqlSelectPair(pairing.toLowerCase(),
+    return new Sql.SelectPair(pairing.toLowerCase(),
                              spec && spec[0].toLowerCase(),
                              lhs,
                              rhs)
@@ -43,7 +43,7 @@ Select
     having:(  __ "HAVING"i __          HavingClause )?
     orderBy:( __ "ORDER"i  __ "BY"i __ OrderByClause )?
   {
-    return new SqlSelect(what, from, where && where[3],groupBy && groupBy[5],
+    return new Sql.Select(what, from, where && where[3],groupBy && groupBy[5],
                          having && having[3], orderBy && orderBy[5])
   }
   / "(" _ sel:Select _ ")" { return sel }
@@ -55,7 +55,7 @@ TargetClause
       / TargetList
     )
   { return {
-      'type': TARGETCLAUSE_TYPE,
+      'type': Sql.TARGETCLAUSE_TYPE,
       'specifier': spec ? spec.toLowerCase() : null,
       'targetlist': target
     }
@@ -87,13 +87,13 @@ Ordering
 
 RelationList
   = item1:RelationItem _ "," _ items:RelationList
-    { return new SqlJoin(item1, items) }
+    { return new Sql.Join(item1, items) }
     / Join
     / RelationItem
 
 RelationItem "RelationItem"
   = item:RelationThing __ ( "AS"i __ )? alias:Name
-  { return new SqlRelation(item, alias) }
+  { return new Sql.Relation(item, alias) }
   / RelationThing
 
 RelationThing
@@ -102,7 +102,7 @@ RelationThing
   / "(" _ join:Join _ ")"
   { return join }
   / tableName:Name
-  { return new SqlRelation(tableName) }
+  { return new Sql.Relation(tableName) }
 
 Join
   = item1:RelationItem __
@@ -116,7 +116,7 @@ Join
         "(" _ list:TargetList _ ")"
         { return ['using', list] }
     )?
-  { return new SqlJoin(item1, item2, jtype, jcond) }
+  { return new Sql.Join(item1, item2, jtype, jcond) }
 
 TargetList
   = item1:TargetItem _ "," _ items:TargetList
@@ -126,23 +126,23 @@ TargetList
 
 TargetItem "TargetItem"
   = table:Name ".*"
-  { return new SqlColumn(table, '*', `${table}.*`, null) }
+  { return new Sql.Column(table, '*', `${table}.*`, null) }
   / op:Operand __ "AS"i __ alias:Name
-  { return new SqlColumn(null, op, alias, alias )}
+  { return new Sql.Column(null, op, alias, alias )}
   / op:Operand __ alias:Name
-  { return new SqlColumn(null, op, alias, alias )}
+  { return new Sql.Column(null, op, alias, alias )}
   / op:Operand _ "=" _ alias:Name
-  { return new SqlColumn(null, op, alias, alias) }
+  { return new Sql.Column(null, op, alias, alias) }
   / op:Operand
-  { return (op instanceof SqlColumn) ? op : new SqlColumn(null, op) }
+  { return (op instanceof Sql.Column) ? op : new Sql.Column(null, op) }
 
 Condition "Condition"
   = lhs:AndCondition rhs:( __ "OR"i __ Condition )?
-  { return rhs ? new SqlConditional('or', lhs, rhs[3]) : lhs }
+  { return rhs ? new Sql.Conditional('or', lhs, rhs[3]) : lhs }
 
 AndCondition
   = lhs:InnerCondition rhs:( __ "AND"i __ AndCondition )?
-  { return rhs ? new SqlConditional('and', lhs, rhs[3]) : lhs }
+  { return rhs ? new Sql.Conditional('and', lhs, rhs[3]) : lhs }
 
 InnerCondition
   = ( ConditionContains
@@ -155,7 +155,7 @@ InnerCondition
 //    / Operand
   )
   / "NOT"i __ expr:Condition
-  { return new SqlConditional('not', expr) }
+  { return new Sql.Conditional('not', expr) }
   / "(" _ expr:Condition _ ")"
   { return expr }
 
@@ -170,11 +170,11 @@ ConditionContains "Conditional-Contains"
       )
       rhs:SQStringLiteral
     ")"
-  { return new SqlConditional('contains', lhs, rhs) }
+  { return new Sql.Conditional('contains', lhs, rhs) }
 
 ConditionComp "Conditional-Comparison"
   = lhs:Operand _ cmp:Compare _ rhs:Operand
-  { return new SqlConditional(cmp, lhs, rhs) }
+  { return new Sql.Conditional(cmp, lhs, rhs) }
 
 ConditionIn
   = lhs_op:Operand __
@@ -183,19 +183,19 @@ ConditionIn
     "(" _
       rhs_ops:( Selectish / OperandList ) _
     ")"
-  { return new SqlConditional('in', lhs_op, rhs_ops, not) }
+  { return new Sql.Conditional('in', lhs_op, rhs_ops, not) }
 
 ConditionExists
   = "EXISTS"i _
     "(" _ subquery:Selectish _ ")"
-  { return new SqlConditional('exists', subquery) }
+  { return new Sql.Conditional('exists', subquery) }
 
 ConditionLike
   = lhs_op:Operand __
     not:( "NOT"i __ )?
     "LIKE"i __
     rhs_op:Operand
-  { return new SqlConditional('like', lhs_op, rhs_op, not) }
+  { return new Sql.Conditional('like', lhs_op, rhs_op, not) }
 
 ConditionBetween
   = lhs_op:Operand __
@@ -215,13 +215,13 @@ ConditionBetween
         ")"
         { return [rhs_op1, rhs_op2] }
     )
-  { return new SqlConditional('between', lhs_op, rhs, not) }
+  { return new Sql.Conditional('between', lhs_op, rhs, not) }
 
 ConditionNull
   = lhs:Operand __ "IS"i __
     not:( "NOT"i __ )?
     NullLiteral
-  { return new SqlConditional('isnull', lhs, null, not) }
+  { return new Sql.Conditional('isnull', lhs, null, not) }
 
 Term
   = Literal
@@ -231,7 +231,7 @@ Term
 
 ColumnRef
   = tbl:( table:Name "." )? column:Name
-    { return new SqlColumn(tbl && tbl[0],
+    { return new Sql.Column(tbl && tbl[0],
                            column,
                            tbl ? `${tbl[0]}.${column}` : column
                           ) }
@@ -246,35 +246,35 @@ AggFunction "aggregate function"
 AggFunctionAvg
   = "AVG"i _
     "(" _ term:Term _ ")"
-  { return new SqlAggFunction("avg", term) }
+  { return new Sql.AggFunction("avg", term) }
 
 AggFunctionCount
   = "COUNT"i _
     "(" _
       targ:TargetClause _
     ")"
-  { return new SqlAggFunction("count", targ) }
+  { return new Sql.AggFunction("count", targ) }
 
 AggFunctionMax
   = "MAX"i _
     "(" _
       term:Term _
     ")"
-  { return new SqlAggFunction("max", term) }
+  { return new Sql.AggFunction("max", term) }
 
 AggFunctionMin
   = "MIN"i _
     "(" _
       term:Term _
     ")"
-  { return new SqlAggFunction("min", term) }
+  { return new Sql.AggFunction("min", term) }
 
 AggFunctionSum
   = "SUM"i _
     "(" _
       term:Term _
     ")"
-  { return new SqlAggFunction("sum", term) }
+  { return new Sql.AggFunction("sum", term) }
 
 /***** PRIMITIVES *****/
 
@@ -299,20 +299,20 @@ OperandList
 Operand // Summand | makeOperation
   = lhs:Summand
     rhs:( _ "||" _ Summand ) *
-  { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation("||",
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => new Sql.Operation("||",
                                                               lh, rh[3])) }
   / Selectish
 
 Summand // Factor | makeOperation
   = lhs:Factor
     rhs:( _ ("+" / "-") _ Factor ) *
-  { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation(rh[1],
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => new Sql.Operation(rh[1],
                                                               lh, rh[3])) }
 
 Factor // literal | function | Operand | column | makeOperation
   = lhs:Term
     rhs:( _ ("*" / "/") _ Term ) *
-  { return reduceIfRHS(lhs, rhs, (lh, rh) => new SqlOperation(rh[1],
+  { return reduceIfRHS(lhs, rhs, (lh, rh) => new Sql.Operation(rh[1],
                                                               lh, rh[3])) }
 
 Compare
@@ -355,13 +355,13 @@ DQStringLiteral "double-quote string"
 
 SQStringLiteral "single-quote string"
   = lit:$( "'" ( [^'] / "''" )* "'" !SQStringLiteral )
-  { return new SqlLiteral('string', lit.slice(1, -1)) }
+  { return new Sql.Literal('string', lit.slice(1, -1)) }
   / lit:$( ("‘"/"’") ( [^’] )* "’" ) // fancy single-quote
-  { return new SqlLiteral('string', lit.slice(1, -1)) }
+  { return new Sql.Literal('string', lit.slice(1, -1)) }
 
 ExponentialLiteral "exponential"
   = val:$( NumericLiteral "e" IntegerLiteral )
-  { return new SqlLiteral('number', parseFloat(val)) }
+  { return new Sql.Literal('number', parseFloat(val)) }
 
 NumericLiteral "number"
   = IntegerLiteral
@@ -369,15 +369,15 @@ NumericLiteral "number"
 
 IntegerLiteral "integer"
   = int:$( "-"? [0-9]+ )
-  { return new SqlLiteral('number', parseInt(int)) }
+  { return new Sql.Literal('number', parseInt(int)) }
 
 DecimalLiteral "decimal"
   = value:$( "-"? [0-9]+ "." [0-9]+ )
-  { return new SqlLiteral('number', parseFloat(value)) }
+  { return new Sql.Literal('number', parseFloat(value)) }
 
 NullLiteral "null"
   = "NULL"i
-  { return new SqlLiteral('null', null) }
+  { return new Sql.Literal('null', null) }
 
 BooleanLiteral "boolean"
   = TruePrim
@@ -385,11 +385,11 @@ BooleanLiteral "boolean"
 
 TruePrim
   = "TRUE"i
-  { return new SqlLiteral('boolean', true) }
+  { return new Sql.Literal('boolean', true) }
 
 FalsePrim
   = "FALSE"i
-  { return new SqlLiteral('boolean', false) }
+  { return new Sql.Literal('boolean', false) }
 
 _ "OptWhitespace"
   = WS* (Comment WS*)* {}
