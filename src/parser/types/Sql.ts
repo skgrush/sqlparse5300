@@ -12,10 +12,10 @@ export const SELECTCLAUSE_TYPE  = "selectclause"
 export const TARGETCLAUSE_TYPE  = "targetclause"
 export const SELECTPAIR_TYPE    = "selectpair"
 
-type Ordering = [SqlColumn, OrderingCondition]
+type Ordering = [Column, OrderingCondition]
 
-export type RelationList = SqlRelation | SqlJoin
-type TargetList = SqlColumn[]
+export type RelationList = Relation | Join
+type TargetList = Column[]
 
 export interface TargetClause {
   type: "targetclause"
@@ -23,7 +23,7 @@ export interface TargetClause {
   targetlist: "*" | TargetList
 }
 
-export class SqlLiteral {
+export class Literal {
   readonly type = LITERAL_TYPE
   literalType: 'string' | 'number' | 'boolean' | 'null'
   value: string | number | boolean | null
@@ -35,19 +35,19 @@ export class SqlLiteral {
   }
 }
 
-export type SqlSelectish = SqlSelect | SqlSelectPair
+export type Selectish = Select | SelectPair
 
-export class SqlSelectPair {
+export class SelectPair {
   readonly type = SELECTPAIR_TYPE
   pairing: PairingString
   condition: PairingCondition
-  lhs: SqlSelect
-  rhs: SqlSelectish
+  lhs: Select
+  rhs: Selectish
 
   constructor(pairing: PairingString,
               condition: PairingCondition,
-              lhs: SqlSelect,
-              rhs: SqlSelectish) {
+              lhs: Select,
+              rhs: Selectish) {
     this.pairing = pairing
     this.condition = condition || null
     this.lhs = lhs
@@ -55,20 +55,20 @@ export class SqlSelectPair {
   }
 }
 
-export class SqlSelect {
+export class Select {
   readonly SELECTCLAUSE_TYPE
   what: TargetClause
   from: RelationList
-  where: SqlConditional | null
+  where: Conditional | null
   groupBy: TargetList | null
-  having: SqlConditional | null
+  having: Conditional | null
   orderBy: Ordering[] | null
 
   constructor(what: TargetClause,
               from: RelationList,
-              where: SqlConditional | null,
+              where: Conditional | null,
               groupBy: TargetList | null,
-              having: SqlConditional | null,
+              having: Conditional | null,
               orderBy: Ordering[] | null) {
     this.what = what
     this.from = from
@@ -79,18 +79,18 @@ export class SqlSelect {
   }
 }
 
-export type SqlOperandType = SqlLiteral | SqlAggFunction | SqlColumn |
-                      SqlOperation | string
+export type OperandType = Literal | AggFunction | Column |
+                      Operation | string
 
-export class SqlColumn {
+export class Column {
   readonly type = COLUMN_TYPE
   relation: string | null
-  target: SqlOperandType
+  target: OperandType
   as: string | null
   alias: string | null
 
   constructor(relation: string | null,
-              target: SqlOperandType,
+              target: OperandType,
               As: string | null = null,
               alias: string | null = null) {
     this.relation = relation
@@ -100,17 +100,17 @@ export class SqlColumn {
   }
 }
 
-export class SqlJoin {
+export class Join {
   readonly type = JOIN_TYPE
   joinType: JoinString
-  condition: SqlConditional | ['using', TargetList] | null
-  lhs: SqlJoin | SqlRelation
-  rhs: SqlJoin | SqlRelation
+  condition: Conditional | ['using', TargetList] | null
+  lhs: Join | Relation
+  rhs: Join | Relation
 
-  constructor(lhs: SqlJoin | SqlRelation,
-              rhs: SqlJoin | SqlRelation,
+  constructor(lhs: Join | Relation,
+              rhs: Join | Relation,
               joinType: JoinString = 'join',
-              condition: SqlConditional | ['using', TargetList] | null = null
+              condition: Conditional | ['using', TargetList] | null = null
   ) {
     this.lhs = lhs
     this.rhs = rhs
@@ -119,32 +119,32 @@ export class SqlJoin {
   }
 }
 
-export class SqlRelation {
+export class Relation {
   readonly type = RELATION_TYPE
-  target: SqlRelation | SqlJoin | string
+  target: Relation | Join | string
   alias: string | null
 
-  constructor(target: SqlRelation | SqlJoin | string,
+  constructor(target: Relation | Join | string,
               alias: string | null = null) {
     this.target = target
     this.alias = alias || null
   }
 }
 
-export type SqlConditionalOp = 'or' | 'and' | 'not' | 'in' | 'exists' | 'like' |
-                               'between' | 'isnull' | '<>' | 'contains' |
-                               '<=' | '>=' | '=' | '<' | '>' | '!='
+export type ConditionalOp = 'or' | 'and' | 'not' | 'in' | 'exists' | 'like' |
+                            'between' | 'isnull' | '<>' | 'contains' |
+                            '<=' | '>=' | '=' | '<' | '>' | '!='
 
-export class SqlConditional {
+export class Conditional {
   readonly type = CONDITIONAL_TYPE
-  operation: SqlConditionalOp
-  lhs: SqlConditional | SqlOperandType
-  rhs: SqlConditional | SqlOperandType | null
+  operation: ConditionalOp
+  lhs: Conditional | OperandType
+  rhs: Conditional | OperandType | null
   not: boolean
 
-  constructor(operation: SqlConditionalOp,
-              lhs: SqlConditional | SqlOperandType,
-              rhs: SqlConditional | SqlOperandType | null = null,
+  constructor(operation: ConditionalOp,
+              lhs: Conditional | OperandType,
+              rhs: Conditional | OperandType | null = null,
               not: boolean = false) {
     if (operation === 'in' && lhs instanceof Array && lhs.length === 1)
       lhs = lhs[0]
@@ -155,24 +155,24 @@ export class SqlConditional {
   }
 }
 
-export class SqlAggFunction {
+export class AggFunction {
   readonly type = AGGFUNCTION_TYPE
   fname: AggFuncName
-  expr: SqlOperandType | TargetClause
+  expr: OperandType | TargetClause
 
-  constructor(fname: AggFuncName, expr: SqlOperandType | TargetClause) {
+  constructor(fname: AggFuncName, expr: OperandType | TargetClause) {
     this.fname = fname
     this.expr = expr
   }
 }
 
-export class SqlOperation {
+export class Operation {
   readonly type = OPERATION_TYPE
   op: OperationOps
-  lhs: SqlOperandType
-  rhs: SqlOperandType
+  lhs: OperandType
+  rhs: OperandType
 
-  constructor(op: OperationOps, lhs: SqlOperandType, rhs: SqlOperandType) {
+  constructor(op: OperationOps, lhs: OperandType, rhs: OperandType) {
     this.op = op
     this.lhs = lhs
     this.rhs = rhs

@@ -12,19 +12,19 @@ export const JOIN_TYPE        = "reljoin"
 export const FUNCTION_TYPE    = "relfunt"
 export const OPERATION_TYPE   = "relop"
 
-export type RelRelationish = RelRelation | RelJoin
+export type Relationish = Relation | Join
 // literals are strings
-export type RelOperandType = RelOperation | string | RelColumn
+export type OperandType = Operation | string | Column
 
-export class RelOperation {
+export class Operation {
   readonly type = OPERATION_TYPE
   op: OperationOps | PairingString
-  lhs: RelOperandType | HighLevelRelationish
-  rhs: RelOperandType | HighLevelRelationish
+  lhs: OperandType | HighLevelRelationish
+  rhs: OperandType | HighLevelRelationish
 
   constructor(op: OperationOps | PairingString,
-              lhs: RelOperandType | HighLevelRelationish,
-              rhs: RelOperandType | HighLevelRelationish) {
+              lhs: OperandType | HighLevelRelationish,
+              rhs: OperandType | HighLevelRelationish) {
     this.op = op
     this.lhs = lhs
     this.rhs = rhs
@@ -33,13 +33,13 @@ export class RelOperation {
 
 type ColumnValueType = Catalog.Column | RelFunction | string
 
-export class RelColumn {
+export class Column {
   readonly type = COLUMN_TYPE
-  relation: RelRelation | null
+  relation: Relation | null
   target: ColumnValueType
   as: string | null
 
-  constructor(relation: RelRelation | null,
+  constructor(relation: Relation | null,
               target: ColumnValueType,
               As: string | null = null) {
     this.relation = relation
@@ -50,16 +50,16 @@ export class RelColumn {
   alias(alias?: string) {
     if (!alias)
       return this
-    return new RelColumn(this.relation, this.target, alias)
+    return new Column(this.relation, this.target, alias)
   }
 }
 
 export class RelFunction {
   readonly type = FUNCTION_TYPE
   fname: AggFuncName
-  expr: '*' | RelColumn // TODO: support correct args
+  expr: '*' | Column // TODO: support correct args
 
-  constructor(fname: AggFuncName, expr: '*' | RelColumn) {
+  constructor(fname: AggFuncName, expr: '*' | Column) {
     this.fname = fname
     this.expr = expr
   }
@@ -68,54 +68,54 @@ export class RelFunction {
 export type ThetaOp = 'eq' | 'neq' | 'leq' | 'geq' | '<' | '>' | 'and' | 'or' |
                       'in'
 
-export class RelConditional {
+export class Conditional {
   readonly type = CONDITIONAL_TYPE
   operation: ThetaOp
-  lhs: RelOperandType | RelConditional
-  rhs: RelOperandType | RelConditional | RelOperandType[]
+  lhs: OperandType | Conditional
+  rhs: OperandType | Conditional | OperandType[]
 
-  constructor(op: ThetaOp, lhs: RelOperandType | RelConditional,
-              rhs: RelOperandType | RelConditional | RelOperandType[]) {
+  constructor(op: ThetaOp, lhs: OperandType | Conditional,
+              rhs: OperandType | Conditional | OperandType[]) {
     this.operation = op
     this.lhs = lhs
     this.rhs = rhs
   }
 }
 
-export type HighLevelRelationish = RelRelationish | RelRestriction | RelProjection | RelRename | RelOperation
+export type HighLevelRelationish = Relationish | Restriction | Projection | Rename | Operation
 
-export class RelRestriction {
+export class Restriction {
   readonly type = RESTRICTION_TYPE
-  conditions: RelConditional
+  conditions: Conditional
   args: HighLevelRelationish
 
-  constructor(conditions: RelConditional, args: HighLevelRelationish) {
+  constructor(conditions: Conditional, args: HighLevelRelationish) {
     this.conditions = conditions
     this.args = args
   }
 }
 
-export class RelProjection {
+export class Projection {
   readonly type = PROJECTION_TYPE
-  columns: RelColumn[]
+  columns: Column[]
   args: HighLevelRelationish
 
-  constructor(columns: RelColumn[], args: HighLevelRelationish) {
+  constructor(columns: Column[], args: HighLevelRelationish) {
     this.columns = columns
     this.args = args
   }
 }
 
-type _RelRenameInputType = RelRelation | RelColumn | RelFunction |
-                           RelRename | string
+type _RenameInputType = Relation | Column | RelFunction |
+                           Rename | string
 
-export class RelRename {
+export class Rename {
   readonly type = RENAME_TYPE
-  input: _RelRenameInputType
+  input: _RenameInputType
   output: string
   args: HighLevelRelationish
 
-  constructor(input: _RelRenameInputType,
+  constructor(input: _RenameInputType,
               output: string,
               args: HighLevelRelationish) {
     this.input = input
@@ -124,7 +124,7 @@ export class RelRename {
   }
 }
 
-export class RelRelation {
+export class Relation {
   readonly type = RELATION_TYPE
   name: string
 
@@ -133,21 +133,21 @@ export class RelRelation {
   }
 }
 
-export type RelJoinCond = "cross" | "left" | "right" | RelConditional
+export type JoinCond = "cross" | "left" | "right" | Conditional
 
 // cross
 // natural (no condition)
 // theta join (with condition)
 // semi (left and right)
-export class RelJoin {
+export class Join {
   readonly type = JOIN_TYPE
   lhs: HighLevelRelationish
   rhs: HighLevelRelationish
-  condition: RelJoinCond
+  condition: JoinCond
 
   constructor(lhs: HighLevelRelationish,
               rhs: HighLevelRelationish,
-              cond: RelJoinCond) {
+              cond: JoinCond) {
     this.lhs = lhs
     this.rhs = rhs
     this.condition = cond

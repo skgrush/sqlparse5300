@@ -1,8 +1,9 @@
 
 import * as Rel from './Rel'
 import * as Sql from './Sql'
+import * as Catalog from './Catalog'
 
-export {Rel, Sql}
+export {Rel, Sql, Catalog}
 
 export type JoinString = "join"       // "," | "JOIN" | "CROSS JOIN"
                        | "equi"       // "INNER JOIN" | "JOIN ... USING"
