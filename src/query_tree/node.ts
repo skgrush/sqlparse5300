@@ -1,7 +1,7 @@
 import {QTOperation, Relation, Join, Restriction, Projection, Rename,
         Operation} from './operation'
 
-import * as types from '../parser/types'
+import {Rel} from '../parser/types'
 
 // if RelRelation:    just name
 // if RelJoin:        ....
@@ -11,37 +11,37 @@ import * as types from '../parser/types'
 // if RelOperation:   hlr SYM hlr
 
 export default class Node {
-  hlr: types.HighLevelRelationish
+  hlr: Rel.HighLevelRelationish
   operation: QTOperation
   children: Node[] = []
   depth: number = 0
 
-  constructor(hlr: types.HighLevelRelationish, depth: number = 0) {
+  constructor(hlr: Rel.HighLevelRelationish, depth: number = 0) {
     this.hlr = hlr
     this.depth = depth
     this.generateOpAndKids()
   }
 
   generateOpAndKids() {
-    if (this.hlr instanceof types.RelRelation) {
+    if (this.hlr instanceof Rel.Relation) {
       this.operation = new Relation(this.hlr)
-    } else if (this.hlr instanceof types.RelJoin) {
+    } else if (this.hlr instanceof Rel.Join) {
       this.operation = new Join(this.hlr)
       this.addNode(new Node(this.hlr.lhs, this.depth + 1))
       this.addNode(new Node(this.hlr.rhs, this.depth + 1))
-    } else if (this.hlr instanceof types.RelRestriction) {
+    } else if (this.hlr instanceof Rel.Restriction) {
       this.operation = new Restriction(this.hlr)
       this.addNode(new Node(this.hlr.args, this.depth + 1))
-    } else if (this.hlr instanceof types.RelProjection) {
+    } else if (this.hlr instanceof Rel.Projection) {
       this.operation = new Projection(this.hlr)
       this.addNode(new Node(this.hlr.args, this.depth + 1))
-    } else if (this.hlr instanceof types.RelRename) {
+    } else if (this.hlr instanceof Rel.Rename) {
       this.operation = new Rename(this.hlr)
       this.addNode(new Node(this.hlr.args, this.depth + 1))
-    } else if (this.hlr instanceof types.RelOperation) {
+    } else if (this.hlr instanceof Rel.Operation) {
       this.operation = new Operation(this.hlr)
-      this.addNode(new Node(this.hlr.lhs as types.HighLevelRelationish, this.depth + 1))
-      this.addNode(new Node(this.hlr.rhs as types.HighLevelRelationish, this.depth + 1))
+      this.addNode(new Node(this.hlr.lhs as Rel.HighLevelRelationish, this.depth + 1))
+      this.addNode(new Node(this.hlr.rhs as Rel.HighLevelRelationish, this.depth + 1))
     } else {
       console.error("Unknown type", this.hlr)
       throw new Error("Unknown op type")

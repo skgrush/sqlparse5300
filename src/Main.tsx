@@ -4,7 +4,7 @@ import * as JSONPretty from 'react-json-pretty'
 
 const Tracer = require('pegjs-backtrace')
 
-import {Catalog} from 'parser/types'
+import {Catalog} from './parser/types'
 
 import RelationsInput, {RelationsInputOutput} from './components/RelationsInput'
 import QueryInput from './components/QueryInput'
@@ -16,7 +16,7 @@ export interface MainState {
   status: string
   queryJSON: any
   relJSON: any
-  catalog: Catalog | null
+  catalog: Catalog.Catalog | null
 
   debug: string
 }

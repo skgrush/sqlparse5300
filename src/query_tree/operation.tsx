@@ -1,5 +1,5 @@
 import * as React from 'react'
-import * as types from '../parser/types'
+import {Rel} from '../parser/types'
 import {htmlRelRelation, htmlRelProjection, relJoinHelper, htmlRelRestriction,
         htmlRelRename, getSymbol } from '../parser/relationalText'
 
@@ -12,25 +12,25 @@ import {htmlRelRelation, htmlRelProjection, relJoinHelper, htmlRelRestriction,
 
 export class QTOperation {
   symbolName: string
-  hlr: types.HighLevelRelationish
+  hlr: Rel.HighLevelRelationish
   html: JSX.Element
 
-  constructor(hlr: types.HighLevelRelationish) {
+  constructor(hlr: Rel.HighLevelRelationish) {
     this.hlr = hlr
   }
 }
 
 export class Relation extends QTOperation {
-  hlr: types.RelRelation
-  constructor(hlr: types.RelRelation) {
+  hlr: Rel.Relation
+  constructor(hlr: Rel.Relation) {
     super(hlr)
     this.html = htmlRelRelation(hlr)
   }
 }
 
 export class Join extends QTOperation {
-  hlr: types.RelJoin
-  constructor(hlr: types.RelJoin) {
+  hlr: Rel.Join
+  constructor(hlr: Rel.Join) {
     super(hlr)
     this.html = this.generateHTML()
   }
@@ -47,32 +47,32 @@ export class Join extends QTOperation {
 }
 
 export class Restriction extends QTOperation {
-  hlr: types.RelRestriction
-  constructor(hlr: types.RelRestriction) {
+  hlr: Rel.Restriction
+  constructor(hlr: Rel.Restriction) {
     super(hlr)
     this.html = htmlRelRestriction(hlr, true)
   }
 }
 
 export class Projection extends QTOperation {
-  hlr: types.RelProjection
-  constructor(hlr: types.RelProjection) {
+  hlr: Rel.Projection
+  constructor(hlr: Rel.Projection) {
     super(hlr)
     this.html = htmlRelProjection(hlr, true)
   }
 }
 
 export class Rename extends QTOperation {
-  hlr: types.RelRename
-  constructor(hlr: types.RelRename) {
+  hlr: Rel.Rename
+  constructor(hlr: Rel.Rename) {
     super(hlr)
     this.html = htmlRelRename(hlr, true)
   }
 }
 
 export class Operation extends QTOperation {
-  hlr: types.RelOperation
-  constructor(hlr: types.RelOperation) {
+  hlr: Rel.Operation
+  constructor(hlr: Rel.Operation) {
     super(hlr)
     this.html = this.generateHTML()
   }
