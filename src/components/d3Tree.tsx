@@ -14,7 +14,9 @@ class Tree extends React.Component<any, any> {
         this.initialize = this.initialize.bind(this)
         this.update = this.update.bind(this)
     }
+
     initialize() {
+        console.log("Initializing")
         let treeData = [
             {
                 "name": "Top Level",
@@ -53,7 +55,7 @@ class Tree extends React.Component<any, any> {
             .size([height, width]);
 
         let diagonal = d3.svg.diagonal()
-            .projection(function (d) { return [d.y, d.x]; });
+            .projection(function (d) { return [d.x, d.y]; });
 
         let svg = d3.select("div#d3-tree").append("svg")
             .attr("width", width + margin.right + margin.left)
@@ -63,9 +65,9 @@ class Tree extends React.Component<any, any> {
 
         let root = treeData[0]
 
-        this.state = {
+        this.setState({
             tree, diagonal, svg, root, i
-        }
+        }, this.update)
     }
     update() {
         let tree = this.state.tree
@@ -79,7 +81,7 @@ class Tree extends React.Component<any, any> {
             links = tree.links(nodes);
 
         // Normalize for fixed-depth.
-        nodes.forEach(function (d) { d.y = d.depth * 180; });
+        nodes.forEach(function (d) { d.y = d.depth * 100; });
 
         // Declare the nodesâ€¦
         let node = svg.selectAll("g.node")
@@ -89,7 +91,7 @@ class Tree extends React.Component<any, any> {
         let nodeEnter = node.enter().append("g")
             .attr("class", "node")
             .attr("transform", function (d) {
-                return "translate(" + d.y + "," + d.x + ")";
+                return "translate(" + d.x + "," + d.y + ")";
             });
 
         nodeEnter.append("circle")
@@ -97,8 +99,8 @@ class Tree extends React.Component<any, any> {
             .style("fill", "#fff");
 
         nodeEnter.append("text")
-            .attr("x", function (d) {
-                return d.children || d._children ? -13 : 13;
+            .attr("y", function (d) {
+                return d.children || d._children ? -18 : 18;
             })
             .attr("dy", ".35em")
             .attr("text-anchor", function (d) {
