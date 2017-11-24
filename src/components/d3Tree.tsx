@@ -6,6 +6,12 @@ import '../styles/tree.scss'
 Code based on: http://www.d3noob.org/2014/01/tree-diagrams-in-d3js_11.html
 */
 
+interface D3Node {
+    name: string
+    parent: string
+    children?: D3Node[]
+}
+
 export default
 class Tree extends React.Component<any, any> {
     constructor(props) {
@@ -16,7 +22,7 @@ class Tree extends React.Component<any, any> {
     }
 
     initialize() {
-        let treeData = [
+        let treeData: D3Node[] = [
             {
                 "name": "Top Level",
                 "parent": "null",
