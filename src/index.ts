@@ -5,9 +5,7 @@ import './styles/tests.scss'
 
 import Main from './Main'
 
-import Tree from './components/d3Tree'
-
 ReactDOM.render(
-  React.createElement(Tree),
+  React.createElement(Main),
   document.getElementById("content")
 )
