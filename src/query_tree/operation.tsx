@@ -24,6 +24,7 @@ export class Relation extends QTOperation {
   hlr: Rel.Relation
   constructor(hlr: Rel.Relation) {
     super(hlr)
+    this.symbolName = 'Relation'
     this.html = htmlRelRelation(hlr)
   }
 }
@@ -32,6 +33,7 @@ export class Join extends QTOperation {
   hlr: Rel.Join
   constructor(hlr: Rel.Join) {
     super(hlr)
+    this.symbolName = 'Join'
     this.html = this.generateHTML()
   }
 
@@ -50,6 +52,7 @@ export class Restriction extends QTOperation {
   hlr: Rel.Restriction
   constructor(hlr: Rel.Restriction) {
     super(hlr)
+    this.symbolName = 'Restriction'
     this.html = htmlRelRestriction(hlr, true)
   }
 }
@@ -58,6 +61,7 @@ export class Projection extends QTOperation {
   hlr: Rel.Projection
   constructor(hlr: Rel.Projection) {
     super(hlr)
+    this.symbolName = 'Projection'
     this.html = htmlRelProjection(hlr, true)
   }
 }
@@ -66,6 +70,7 @@ export class Rename extends QTOperation {
   hlr: Rel.Rename
   constructor(hlr: Rel.Rename) {
     super(hlr)
+    this.symbolName = 'Rename'
     this.html = htmlRelRename(hlr, true)
   }
 }
@@ -74,6 +79,7 @@ export class Operation extends QTOperation {
   hlr: Rel.Operation
   constructor(hlr: Rel.Operation) {
     super(hlr)
+    this.symbolName = 'Operation'
     this.html = this.generateHTML()
   }
 
