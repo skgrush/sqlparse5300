@@ -1,5 +1,6 @@
 import * as React from 'react'
 import * as d3 from 'd3'
+import '../styles/tree.scss'
 
 /*
 Code based on: http://www.d3noob.org/2014/01/tree-diagrams-in-d3js_11.html
