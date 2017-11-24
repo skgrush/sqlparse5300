@@ -1,10 +1,15 @@
 import * as React from 'react'
 import * as d3 from 'd3'
 import '../styles/tree.scss'
+import Node from '../query_tree/node'
 
 /*
 Code based on: http://www.d3noob.org/2014/01/tree-diagrams-in-d3js_11.html
 */
+
+interface TreeProps {
+    root: Node
+}
 
 interface D3Node {
     name: string
@@ -12,8 +17,19 @@ interface D3Node {
     children?: D3Node[]
 }
 
+function convertToD3Node(root: Node, parent: string = "null"): D3Node {
+    let name = root.operation.symbolName || "NO NAME????"
+    let d3Root = {
+        name,
+        parent,
+        children: root.children.map(node => convertToD3Node(node, name))
+    }
+
+    return d3Root
+}
+
 export default
-class Tree extends React.Component<any, any> {
+class Tree extends React.Component<TreeProps, any> {
     constructor(props) {
         super(props)
 
@@ -22,33 +38,6 @@ class Tree extends React.Component<any, any> {
     }
 
     initialize() {
-        let treeData: D3Node[] = [
-            {
-                "name": "Top Level",
-                "parent": "null",
-                "children": [
-                    {
-                        "name": "Level 2: A",
-                        "parent": "Top Level",
-                        "children": [
-                            {
-                                "name": "Son of A",
-                                "parent": "Level 2: A"
-                            },
-                            {
-                                "name": "Daughter of A",
-                                "parent": "Level 2: A"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "Level 2: B",
-                        "parent": "Top Level"
-                    }
-                ]
-            }
-        ];
-
         // ************** Generate the tree diagram  *****************
         let margin = { top: 20, right: 120, bottom: 20, left: 120 },
             width = 960 - margin.right - margin.left,
@@ -68,7 +57,7 @@ class Tree extends React.Component<any, any> {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        let root = treeData[0]
+        let root = convertToD3Node(this.props.root)
 
         this.setState({
             tree, diagonal, svg, root, i
