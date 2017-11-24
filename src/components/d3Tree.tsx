@@ -12,8 +12,6 @@ class Tree extends React.Component<any, any> {
 
         this.initialize = this.initialize.bind(this)
         this.update = this.update.bind(this)
-
-        this.initialize()
     }
     initialize() {
         let treeData = [
@@ -116,6 +114,10 @@ class Tree extends React.Component<any, any> {
         link.enter().insert("path", "g")
             .attr("class", "link")
             .attr("d", diagonal);
+    }
+
+    componentDidMount() {
+        this.initialize()
     }
 
     render() {
