@@ -8,7 +8,7 @@ import {htmlHLR} from '../parser/relationalText'
 
 import {Projection} from '../query_tree/operation'
 import Node from '../query_tree/node'
-import Tree from '../components/tree'
+import Tree from '../components/d3Tree'
 
 interface TestCaseProps {
   catalog: Catalog.Catalog | null
@@ -182,7 +182,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
           <div className="tree" data-empty={!this.state.root}>
             <h4>Tree</h4>
             { this.state.root &&
-                <Tree root={this.state.root} margin={10} />
+                <Tree root={this.state.root} />
             }
           </div>
           <div className="traceback" data-empty={!this.state.debug}>
