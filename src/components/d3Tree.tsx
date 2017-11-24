@@ -16,7 +16,6 @@ class Tree extends React.Component<any, any> {
     }
 
     initialize() {
-        console.log("Initializing")
         let treeData = [
             {
                 "name": "Top Level",
