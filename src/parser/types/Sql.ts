@@ -12,7 +12,7 @@ export const SELECTCLAUSE_TYPE  = "selectclause"
 export const TARGETCLAUSE_TYPE  = "targetclause"
 export const SELECTPAIR_TYPE    = "selectpair"
 
-type Ordering = [Column, OrderingCondition]
+export type Ordering = [Column, OrderingCondition]
 
 export type RelationList = Relation | Join
 type TargetList = Column[]

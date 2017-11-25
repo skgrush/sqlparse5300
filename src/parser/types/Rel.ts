@@ -1,4 +1,5 @@
-import {OperationOps, PairingString, AggFuncName} from './index'
+import {OperationOps, PairingString, AggFuncName, OrderingCondition
+        } from './index'
 import * as Catalog from './Catalog'
 
 export const AGGREGATION_TYPE = "aggregation"
@@ -32,7 +33,9 @@ export class Operation {
   }
 }
 
-type ColumnValueType = Catalog.Column | RelFunction | string
+export type Columnish = Column | RelFunction | string
+export type ColumnValueType = Catalog.Column | RelFunction | string
+export type Ordering = [Column | string, OrderingCondition]
 
 export class Column {
   readonly type = COLUMN_TYPE

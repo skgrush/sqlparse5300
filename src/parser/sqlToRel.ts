@@ -1,7 +1,5 @@
 
-import {Rel, Sql, Catalog} from './types'
-
-type ColumnValueType = Rel.Column | Rel.RelFunction | string
+import {Rel, Sql, Catalog, OrderingCondition} from './types'
 
 type RelationLookup = Map<string, Rel.Relation>
 
@@ -18,10 +16,12 @@ class RelationBubbleUp<T> {
 }
 
 class RenameBubbleUp {
-  target: ColumnValueType
+  target: Rel.Columnish
   output: string
 
-  constructor(target: ColumnValueType, output: string) {
+  constructor(target: Rel.Columnish, output: string) {
+    if (!(target instanceof Rel.Column))
+      console.log("Rename of non-column!", target, output)
     this.target = target
     this.output = output
   }
@@ -38,7 +38,7 @@ class ColumnLookup {
     this.relations = relations
   }
 
-  addAlias(name: string, target: Rel.Column) {
+  addAlias(name: string, target: Rel.Column): Rel.Column {
     const cols = this.map.get(name)
     if (!(target instanceof Rel.Column)) {
       target = new Rel.Column(null, target, name)
@@ -156,14 +156,14 @@ function fromColumn(arg: Sql.Column,
                     relations: RelationLookup,
                     columns: ColumnLookup,
                     catalog: Catalog.Catalog
-  ): RenameBubbleUp | ColumnValueType {
+  ): RenameBubbleUp | Rel.Columnish {
   const alias = arg.alias
   let target
   if (arg.target instanceof Sql.Column) {
     // column of column; either rename it or return target
     target = fromColumn(arg.target, relations, columns, catalog)
     if (!alias)
-      console.warn("Why double column?")
+      console.log("Why double column?")
     else if (target instanceof RenameBubbleUp) {
       console.error("Double rename; arg,target =", arg, target)
       throw new Error("Double rename not supported")
@@ -192,7 +192,7 @@ function fromTargetList(targetColumns: Sql.Column[],
                         relationLookup: RelationLookup,
                         columnLookup: ColumnLookup,
                         catalog: Catalog.Catalog
-  ): [ColumnValueType[], RenameBubbleUp[]] {
+  ): [Rel.Columnish[], RenameBubbleUp[]] {
   console.info("fromTargetList:", targetColumns)
   const renames: RenameBubbleUp[] = []
   const cols = targetColumns.map((colarg) => {
@@ -290,7 +290,11 @@ function fromAggFunction(agg: Sql.AggFunction,
     case 'sum':
       if (!(agg.expr instanceof Sql.Column))
         throw new Error(`non-column arguments to aggregates not supported`)
-      const expr = fromColumn(agg.expr, rels, cols, cata) as Rel.Column
+      const expr = fromColumn(agg.expr, rels, cols, cata)
+      if (!(expr instanceof Rel.Column)) {
+        console.log("Anomalous AggFunction expr:", expr, "agg:", agg)
+        return new Rel.RelFunction(agg.fname, expr as any as Rel.Column)
+      }
       return new Rel.RelFunction(agg.fname, expr)
     default:
       throw new Error(`Unknown aggregate function ${agg.fname}`)
@@ -432,15 +436,27 @@ function fromConditional(arg: Sql.Conditional,
   return condit
 }
 
-function fromOrderings(orderings, rels, cols, cata) {
+function fromOrdering(rels: RelationLookup,
+                      cols: ColumnLookup,
+                      cata: Catalog.Catalog,
+                      ordering: Sql.Ordering
+  ): Rel.Ordering {
+  const [col, cond] = ordering
+  let column = fromColumn(col, rels, cols, cata)
+  if (column instanceof RenameBubbleUp)
+    column = column.target
+  if (column instanceof Rel.RelFunction)
+    throw new Error("Ordering by function is not supported")
+  return [column, cond]
+}
+
+function fromOrderings(orderings: Sql.Ordering[] | null,
+                       rels: RelationLookup,
+                       cols: ColumnLookup,
+                       cata: Catalog.Catalog): Rel.Ordering[] | null {
   if (!orderings || !orderings.length)
     return null
-  return orderings.map(([col, cond]) => {
-    const column = fromColumn(col, rels, cols, cata)
-    if (column instanceof RenameBubbleUp)
-      return [column.target, cond]
-    return [column, cond]
-  })
+  return orderings.map(fromOrdering.bind(null, rels, cols, cata))
 }
 
 export function fromSelectPair(selPair: Sql.SelectPair,
@@ -611,7 +627,10 @@ export function fromSqlSelect(select: Sql.Select, catalog: Catalog.Catalog) {
 
     fromClause = new Rel.Aggregation(groupBy, functs, fromClause, aggRenames)
 
-    // TODO: implement HAVING
+    // TODO: implement HAVING with aggregate-condition support
+    if (having) {
+      fromClause = new Rel.Restriction(having, fromClause)
+    }
 
   } else if (select.having)
     console.warn("Ignored HAVING clause without GROUP BY clause")
