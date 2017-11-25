@@ -9,6 +9,7 @@ Code based on: http://www.d3noob.org/2014/01/tree-diagrams-in-d3js_11.html
 
 interface TreeProps {
     root: Node
+    id: string
 }
 
 interface D3Node {
@@ -51,7 +52,7 @@ class Tree extends React.Component<TreeProps, any> {
         let diagonal = d3.svg.diagonal()
             .projection(function (d) { return [d.x, d.y]; });
 
-        let svg = d3.select("div#d3-tree").append("svg")
+        let svg = d3.select(`div#d3-tree-${this.props.id}`).append("svg")
             .attr("width", width + margin.right + margin.left)
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
@@ -118,6 +119,6 @@ class Tree extends React.Component<TreeProps, any> {
     }
 
     render() {
-        return <div id="d3-tree"></div>
+        return <div id={`d3-tree-${this.props.id}`}></div>
     }
 }

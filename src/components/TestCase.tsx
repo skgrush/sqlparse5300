@@ -182,7 +182,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
           <div className="tree" data-empty={!this.state.root}>
             <h4>Tree</h4>
             { this.state.root &&
-                <Tree root={this.state.root} />
+                <Tree root={this.state.root} id={this.props.anchor} />
             }
           </div>
           <div className="traceback" data-empty={!this.state.debug}>
