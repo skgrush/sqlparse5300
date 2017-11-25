@@ -497,39 +497,138 @@ export function fromSqlSelect(select: Sql.Select, catalog: Catalog.Catalog) {
                                               catalog)
   }
 
-  // const whereClause = select.where
-  //     ? fromConditional(select.where, relations, columns, catalog)
-  //     : null
-  let whereClause: any = null
+  let whereClause: Rel.Conditional|null = null
   if (select.where) {
-    whereClause = fromConditional(select.where, relations, columns, catalog)
-    if (whereClause instanceof BubbleUp) {
-      fromClause = new Rel.Join(fromClause, whereClause.relationish, 'cross')
-      whereClause = whereClause.realOperation as Rel.Conditional
+    const tmpCond = fromConditional(select.where, relations, columns, catalog)
+    if (tmpCond instanceof RelationBubbleUp) {
+      fromClause = new Rel.Join(fromClause, tmpCond.relationish, 'cross')
+      whereClause = tmpCond.realOperation as Rel.Conditional
+    } else {
+      whereClause = tmpCond
     }
   }
+
+  // let groupBy: Array<string|Rel.Column|Rel.RelFunction>|null = null
+  if (select.groupBy) {
+
+    let having: Rel.Conditional|null = null
+    if (select.having) {
+      const tmpCond = fromConditional(select.having, relations, columns, catalog)
+      if (!(tmpCond instanceof Rel.Conditional))
+        throw new Error("Unexpected type from fromConditional; RelationBubbleUp?")
+      having = tmpCond
+    }
+
+    const gList = fromTargetList(select.groupBy, relations, columns, catalog)
+    if (gList[1].length)
+      console.warn("Ignored rename(s) of GROUP BY clause")
+    const groupBy = gList[0] as Rel.Column[]
+
+    const groupByNames: string[] = []
+    groupBy.forEach((g) => {
+      if (!(g instanceof Rel.Column))
+        throw new Error("Cannot group-by non-column")
+
+      let foundIdx = -1
+      for (let i = 0; i < renames.length; i++) {
+        const ren = renames[i]
+        if (ren.target instanceof Rel.Column && ren.target.target === g.target) {
+          foundIdx = i
+          groupByNames.push(ren.output)
+          renames.splice(foundIdx, 1)
+          break
+        }
+      }
+      if (foundIdx < 0) {
+        if (g.as)
+          groupByNames.push(g.as)
+        else {
+          console.error("Bad column:", g)
+          throw new Error("Un 'as'd Column")
+        }
+      }
+    })
+
+    if (targetColumns === '*')
+      throw new Error("Group-By on '*' selection unsupported")
+
+    const functs: Rel.RelFunction[] = []
+    const aggRenames = groupByNames.slice()
+    targetColumns.forEach((col, colIdx) => {
+      if (typeof col === 'string')
+        throw new Error("Group-By on literals unsupported")
+
+      if (col instanceof Rel.Column && col.target instanceof Rel.RelFunction) {
+        const target = col.target
+        const colname = col.as
+        console.log(`col:`, col, renames)
+        if (colname) {
+          aggRenames[colIdx] = colname
+          for (let i = 0; i < renames.length; i++) {
+            const ren = renames[i]
+            if (ren.target instanceof Rel.Column
+                && ren.target.target instanceof Rel.RelFunction) {
+              if (ren.target.target === target && ren.output === colname) {
+                console.log("Found it!", i)
+                renames.splice(i, 1)
+                break
+              }
+            }
+          }
+        }
+        console.log(renames)
+        col = col.target
+      }
+
+      if (col instanceof Rel.RelFunction) {
+        functs.push(col)
+        const gFunctName = col.getName()
+        let foundIdx = -1
+        for (let i = 0; i < renames.length; i++) {
+          const ren = renames[i]
+          if (ren.target instanceof Rel.RelFunction
+              && ren.target.getName() === gFunctName) {
+            foundIdx = i
+            aggRenames[colIdx] = ren.output
+            renames.splice(foundIdx, 1)
+            break
+          }
+        }
+        if (foundIdx < 0 && !aggRenames[colIdx])
+          aggRenames[colIdx] = gFunctName
+
+      } else if (col instanceof Rel.Column) {
+        if (!col.as)
+          throw new Error("Un 'as'd column")
+        if (groupByNames.indexOf(col.as) === -1) {
+          throw new Error(`GroupBy confusion; didn't find "${col.as}"`)
+        }
+      } else {
+        console.error("targetColumns:", targetColumns)
+        throw new Error("Unexpected argument in targetColumns")
+      }
+    })
+
+    fromClause = new Rel.Aggregation(groupBy, functs, fromClause, aggRenames)
+
+    // TODO: implement HAVING
+
+  } else if (select.having)
+    console.warn("Ignored HAVING clause without GROUP BY clause")
+
+  const orderBy = fromOrderings(select.orderBy, relations, columns, catalog)
 
   if (renames.length) {
     fromClause = applyRenameBubbleUps(renames, fromClause)
   }
 
-  const groupBy = select.groupBy
-      ? fromTargetList(select.groupBy, relations, columns, catalog)
-      : null
-
-  const having = select.having
-      ? fromConditional(select.having, relations, columns, catalog)
-      : null
-
-  const orderBy = fromOrderings(select.orderBy, relations, columns, catalog)
-
-  const Rest = whereClause
+  const Restrict = whereClause
       ? new Rel.Restriction(whereClause, fromClause)
       : fromClause
 
-  const Proj = targetColumns === '*'
-      ? Rest
-      : new Rel.Projection(targetColumns, Rest)
+  const Project = targetColumns === '*'
+      ? Restrict
+      : new Rel.Projection(targetColumns as Array<string|Rel.Column>, Restrict)
 
-  return Proj
+  return Project
 }

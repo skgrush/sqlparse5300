@@ -64,6 +64,17 @@ export class RelFunction {
     this.fname = fname
     this.expr = expr
   }
+
+  getName(): string {
+    if (this.expr === '*')
+      return `${this.fname}_*`
+    else if (this.expr.as)
+      return `${this.fname}_${this.expr.as}`
+    else {
+      console.error("Failure to name RelFunction", this)
+      throw new Error("Couldn't produce name for RelFunction")
+    }
+  }
 }
 
 export class Aggregation {
@@ -71,12 +82,21 @@ export class Aggregation {
   attributes: Column[]
   functions: RelFunction[]
   relation: HighLevelRelationish
+  renames: string[]
 
   constructor(attributes: Column[], functions: RelFunction[],
-              relation: HighLevelRelationish) {
+              relation: HighLevelRelationish, renames: string[]) {
     this.attributes = attributes
     this.functions = functions
     this.relation = relation
+    this.renames = renames
+
+    if (renames.length &&
+        renames.length !== (attributes.length + functions.length)) {
+      const [rl, al, fl] = [renames.length, attributes.length, functions.length]
+      console.error("Bad number of renames;", renames, attributes, functions)
+      throw new Error(`Bad number of renames; ${rl} != ${al} + ${fl}`)
+    }
   }
 }
 
