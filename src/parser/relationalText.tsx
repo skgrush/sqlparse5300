@@ -82,7 +82,7 @@ export function htmlARGS(args: Rel.HighLevelRelationish, noargs = false) {
   }
 }
 
-export function htmlRelAggregation(agg: Rel.Aggregation) {
+export function htmlRelAggregation(agg: Rel.Aggregation, noargs = false) {
   let attrs: JSX.Element | null = null
   if (agg.attributes && agg.attributes.length)
     attrs = (
@@ -93,15 +93,21 @@ export function htmlRelAggregation(agg: Rel.Aggregation) {
       </sub>
     )
 
-  return (
+  const aggregJsx = (
     <span className="RelAggregation">
       {attrs}
       <span className="operator">{getSymbol('aggregation')}</span>
       <sub className="functions">
         {htmlColumnList(agg.functions)}
       </sub>
+      {htmlARGS(agg.relation, noargs)}
     </span>
   )
+
+  if (agg.renames.length)
+    return htmlRelRenameAggregate(agg.renames, aggregJsx)
+  else
+    return aggregJsx
 }
 
 export function htmlRelRestriction(res: Rel.Restriction, noargs = false) {
@@ -133,7 +139,7 @@ export function htmlRelProjection(res: Rel.Projection, noargs = false) {
   )
 }
 
-export function htmlColumnList(cols: Array<Rel.Column|Rel.RelFunction>
+export function htmlColumnList(cols: Array<string|Rel.Column|Rel.RelFunction>
   ): Array<string|JSX.Element> {
   const columns: Array<string|JSX.Element> = []
   cols.forEach((col, idx) => {
@@ -207,12 +213,42 @@ export function getName(thing) {
   throw new Error("unexpected thing to getName")
 }
 
+export function htmlRelRenameAggregate(renames: string[], aggregJsx: JSX.Element) {
+  const SYM = getSymbol('rename')
+  const OUTPUT = htmlColumnList(renames)
+  return (
+    <span className="RelRename RelRename-aggregation">
+      <span className="operator">{SYM}</span>
+      <sub className="condition">
+        {OUTPUT}
+      </sub>
+      (
+        {aggregJsx}
+      )
+    </span>
+  )
+}
+
 export function htmlRelRename(ren: Rel.Rename, noargs = false) {
   const SYM = getSymbol('rename')
   const INPUT = getName(ren.input)
   const OUTPUT = ren.output
   const ARGS = htmlARGS(ren.args, noargs)
 
+  // R as S  =>  ρ_S (R)
+  if (ren.input === ren.args && ren.input instanceof Rel.Relation)
+    return (
+      <span className="RelRename RelRename-unary">
+        <span className="operator">{SYM}</span>
+        <sub className="condition">
+          {OUTPUT}
+        </sub>
+        {ARGS}
+      </span>
+    )
+
+  // R.a as b  =>  ρ_{b∕R.a}(R)
+  // R as S  =>  ρ_{S∕R}(...)
   return (
     <span className="RelRename">
       <span className="operator">{SYM}</span>
@@ -331,6 +367,8 @@ export function htmlHLR(hlr: Rel.HighLevelRelationish) {
     return htmlRelRelation(hlr)
   if (hlr instanceof Rel.Join)
     return htmlRelJoin(hlr)
+  if (hlr instanceof Rel.Aggregation)
+    return htmlRelAggregation(hlr)
   console.error("unknown HLR:", hlr)
   throw new Error("Unknown type passed to htmlHLR")
 }
