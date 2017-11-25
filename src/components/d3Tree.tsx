@@ -39,9 +39,9 @@ class Tree extends React.Component<TreeProps, any> {
 
     initialize() {
         // ************** Generate the tree diagram  *****************
-        let margin = { top: 20, right: 120, bottom: 20, left: 120 },
+        let margin = { top: 40, right: 120, bottom: 40, left: 120 },
             width = 960 - margin.right - margin.left,
-            height = 500 - margin.top - margin.bottom;
+            height = 960 - margin.top - margin.bottom;
 
         let i = 0;
 
