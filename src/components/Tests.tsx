@@ -18,6 +18,7 @@ interface TestsState {
   catalog: Catalog.Catalog | null
   doRun: boolean
   queryNames: string[]
+  showStructures: boolean | undefined
 }
 
 export default class Tests extends React.Component<TestsProps, TestsState> {
@@ -26,10 +27,12 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
     this.state = {
       catalog: props.catalog,
       doRun: false,
-      queryNames: selectTests.map(getTestName)
+      queryNames: selectTests.map(getTestName),
+      showStructures: undefined
     }
 
     this.run = this.run.bind(this)
+    this.toggleStructures = this.toggleStructures.bind(this)
   }
 
   componentWillReceiveProps(nextProps: TestsProps) {
@@ -49,6 +52,10 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
       })
   }
 
+  toggleStructures(e) {
+    this.setState({showStructures: !this.state.showStructures})
+  }
+
   render() {
     return (
       <div id="tests-div">
@@ -56,7 +63,14 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
         <button
           onClick={this.run}
           disabled={!this.state.catalog}
-        >Run Tests</button>
+        >
+          Run Tests
+        </button>
+        <button
+          onClick={this.toggleStructures}
+        >
+          {this.state.showStructures ? "Hide" : "Show"} Structures
+        </button>
         <nav id="tests-nav">
           <ol>
             {
@@ -81,6 +95,7 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
                 key={idx}
                 anchor={`q${idx}`}
                 name={this.state.queryNames[idx] || undefined}
+                showStructures={this.state.showStructures}
               />
             ))
           }

@@ -81,6 +81,7 @@ export default class Main extends React.Component<any, MainState> {
             doRun={true} // bad idea??
             anchor="main-test"
             name="Main Test"
+            showStructures={undefined}
           />
           <div id="debug-output" data-empty={!this.state.debug}>
             <pre><code>{this.state.debug}</code></pre>

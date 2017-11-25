@@ -15,6 +15,7 @@ interface TestCaseProps {
   queryInputText: string
   doRun: boolean
   anchor: string
+  showStructures: boolean | undefined
   name?: string
 }
 
@@ -28,13 +29,17 @@ interface TestCaseState {
   color: string
   tscolor: string
   debug: any
+  showStructures: boolean
 }
 
 export default class TestCase extends React.Component<TestCaseProps, TestCaseState> {
+
   constructor(props) {
     super(props)
     this.state = this.initialState()
+
     this.run = this.run.bind(this)
+    this.toggleStructures = this.toggleStructures.bind(this)
   }
 
   componentDidMount() {
@@ -46,7 +51,11 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
   }
 
   propsReceived(newProps: TestCaseProps) {
-    const {catalog, queryInputText, doRun} = this.props
+    const {catalog, queryInputText, doRun, showStructures} = this.props
+    if (newProps.showStructures !== undefined)
+      this.setState({showStructures: newProps.showStructures})
+
+    // if any test-related props are different, reset state.
     if (newProps.catalog !== catalog ||
         newProps.queryInputText !== queryInputText ||
         newProps.doRun !== doRun
@@ -68,7 +77,8 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       root: null,
       color: 'currentcolor',
       tscolor: 'currentcolor',
-      debug: ''
+      debug: '',
+      showStructures: Boolean(this.props.showStructures)
     }
   }
 
@@ -150,6 +160,10 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
      })
   }
 
+  toggleStructures(e) {
+    this.setState({showStructures: !this.state.showStructures})
+  }
+
   render() {
     return (
       <section id={this.props.anchor} className="testcase">
@@ -166,16 +180,28 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
             </span>
           )}
         </div>
+        { (this.state.queryJSON || this.state.relAlJSON) && (
+            <button onClick={this.toggleStructures}>
+              {this.state.showStructures ? "Hide" : "Show"} Structures
+            </button>
+          )
+        }
         <div className="testcase-inner">
           <div className="relal-html" data-empty={!this.state.relAlHTML}>
             <h4>Relational Algebra</h4>
             {this.state.relAlHTML}
           </div>
-          <div className="sql-json" data-empty={!this.state.queryJSON}>
+          <div
+            className="sql-json"
+            data-empty={!(this.state.queryJSON && this.state.showStructures)}
+          >
             <h4>SQL Structure</h4>
             <JSONPretty json={this.state.queryJSON} />
           </div>
-          <div className="relal-json" data-empty={!this.state.relAlJSON}>
+          <div
+            className="relal-json"
+            data-empty={!(this.state.relAlJSON && this.state.showStructures)}
+          >
             <h4>Relational Algebra Structure</h4>
             <JSONPretty json={this.state.relAlJSON} />
           </div>

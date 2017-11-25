@@ -1,15 +1,16 @@
 
+[data-empty=true] {
+  display: none;
+}
+
 .testcase {
   & > .testcase-status > span {
     display: block;
   }
+
   & > .testcase-inner {
     display: flex;
     flex-flow: row wrap;
-
-    & > [data-empty="true"] {
-      display: none;
-    }
 
     & > .relal-html {
       flex: 2 2 100%;
