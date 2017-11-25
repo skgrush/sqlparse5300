@@ -7,7 +7,7 @@ type RelationLookup = Map<string, Rel.Relation>
 
 /* bubble a join/relation up to the calling function, also returning
    the 'realOperation' that took place */
-class BubbleUp<T> {
+class RelationBubbleUp<T> {
   realOperation: T
   relationish: Rel.HighLevelRelationish
 
@@ -350,14 +350,14 @@ function _handleSubquery(arg, lhs, op, relations, columns, catalog) {
   else
     conditional = new Rel.Conditional(op, lhs, rhsTarget[0])
 
-  return new BubbleUp<Rel.Conditional>(conditional, tmpRhs.args)
+  return new RelationBubbleUp<Rel.Conditional>(conditional, tmpRhs.args)
 }
 
 function fromConditional(arg: Sql.Conditional,
                          relations: RelationLookup,
                          columns: ColumnLookup,
                          catalog: Catalog.Catalog
-  ): Rel.Conditional | BubbleUp<Rel.Conditional> {
+  ): Rel.Conditional | RelationBubbleUp<Rel.Conditional> {
   let binOp = true
   let op: Rel.ThetaOp
   switch (arg.operation) {
@@ -480,13 +480,13 @@ function applyRenameBubbleUps(renames: RenameBubbleUp[],
 export function fromSqlSelect(select: Sql.Select, catalog: Catalog.Catalog) {
 
   // map names to the actual instances
-  const relations = new Map()
+  const relations: RelationLookup = new Map()
   const columns = new ColumnLookup(catalog, relations)
 
   let fromClause: Rel.HighLevelRelationish
       = fromRelationList(select.from, relations, columns, catalog)
 
-  let targetColumns
+  let targetColumns: '*' | Array<string|Rel.Column|Rel.RelFunction>
   let renames: RenameBubbleUp[] = []
   if (select.what.targetlist === '*')
     targetColumns = '*'

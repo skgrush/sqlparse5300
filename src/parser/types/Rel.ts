@@ -113,10 +113,10 @@ export class Restriction {
 
 export class Projection {
   readonly type = PROJECTION_TYPE
-  columns: Column[]
+  columns: Array<string|Column>
   args: HighLevelRelationish
 
-  constructor(columns: Column[], args: HighLevelRelationish) {
+  constructor(columns: Array<string|Column>, args: HighLevelRelationish) {
     this.columns = columns
     this.args = args
   }
