@@ -165,10 +165,12 @@ export class Rename {
 
 export class Relation {
   readonly type = RELATION_TYPE
-  name: string
+  readonly name: string
+  readonly target: Catalog.Relation
 
-  constructor(name: string) {
+  constructor(name: string, target: Catalog.Relation) {
     this.name = name
+    this.target = target
   }
 }
 

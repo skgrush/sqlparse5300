@@ -218,7 +218,8 @@ function fromRelation(arg: Sql.Relation,
     if (relations.has(arg.target))
       relat = relations.get(arg.target)
     else if (catalog.relations.has(arg.target)) {
-      relat = new Rel.Relation(arg.target)
+      relat = new Rel.Relation(arg.target,
+                    catalog.relations.get(arg.target) as Catalog.Relation)
       relations.set(arg.target, relat)
     } else {
       console.error(`Unknown relation ${arg.target}`, arg, relations)
