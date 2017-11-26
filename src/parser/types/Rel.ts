@@ -2,24 +2,49 @@ import {OperationOps, PairingString, AggFuncName, OrderingCondition
         } from './index'
 import * as Catalog from './Catalog'
 
-export const AGGREGATION_TYPE = "aggregation"
-export const RESTRICTION_TYPE = "restriction"
-export const PROJECTION_TYPE  = "projection"
-export const RENAME_TYPE      = "rename"
-
-export const RELATION_TYPE    = "relrelation"
-export const COLUMN_TYPE      = "relcolumn"
-export const CONDITIONAL_TYPE = "relconditional"
-export const JOIN_TYPE        = "reljoin"
-export const FUNCTION_TYPE    = "relfunt"
-export const OPERATION_TYPE   = "relop"
-
-export type Relationish = Relation | Join
 // literals are strings
-export type OperandType = Operation | string | Column
+export type OperandType = string | Operation | Column
+export type Ordering = [Column | string, OrderingCondition]
+export type ColumnValueType = Catalog.Column | RelFunction | string
+export type Columnish = Column | RelFunction | string
+export type HighLevelRelationish = Relation | Join | Restriction | Projection |
+                                   Rename | Operation | Aggregation
 
-export class Operation {
-  readonly type = OPERATION_TYPE
+/* enumerated strings attached to class instances.
+ * Useful for JSON output.
+ * CAN be used for quick comparison, but **instanceof should be prefered**.
+ */
+export const enum TypeString {
+  Aggregation = "aggregation",
+  Restriction = "restriction",
+  Projection = "projection",
+  Rename = "rename",
+  Relation = "relation",
+  Column = "column",
+  Conditional = "conditional",
+  Join = "join",
+  Function = "funct",
+  Operation = "op"
+}
+
+export const enum HLRTypeString {
+  Aggregation = TypeString.Aggregation,
+  Restriction = TypeString.Restriction,
+  Projection = TypeString.Projection,
+  Rename = TypeString.Rename,
+  Relation = TypeString.Relation,
+  Join = TypeString.Join,
+  Operation = TypeString.Operation
+}
+
+export abstract class HLR {
+  readonly abstract type: HLRTypeString
+
+  constructor() {}
+}
+
+export class Operation extends HLR {
+  readonly type = HLRTypeString.Operation
   op: OperationOps | PairingString
   lhs: OperandType | HighLevelRelationish
   rhs: OperandType | HighLevelRelationish
@@ -27,18 +52,15 @@ export class Operation {
   constructor(op: OperationOps | PairingString,
               lhs: OperandType | HighLevelRelationish,
               rhs: OperandType | HighLevelRelationish) {
+    super()
     this.op = op
     this.lhs = lhs
     this.rhs = rhs
   }
 }
 
-export type Columnish = Column | RelFunction | string
-export type ColumnValueType = Catalog.Column | RelFunction | string
-export type Ordering = [Column | string, OrderingCondition]
-
 export class Column {
-  readonly type = COLUMN_TYPE
+  readonly type = TypeString.Column
   relation: Relation | null
   target: ColumnValueType
   as: string | null
@@ -59,7 +81,7 @@ export class Column {
 }
 
 export class RelFunction {
-  readonly type = FUNCTION_TYPE
+  readonly type = TypeString.Function
   fname: AggFuncName
   expr: '*' | Column // TODO: support correct args
 
@@ -80,8 +102,8 @@ export class RelFunction {
   }
 }
 
-export class Aggregation {
-  readonly type = AGGREGATION_TYPE
+export class Aggregation extends HLR {
+  readonly type = HLRTypeString.Aggregation
   attributes: Column[]
   functions: RelFunction[]
   relation: HighLevelRelationish
@@ -89,6 +111,7 @@ export class Aggregation {
 
   constructor(attributes: Column[], functions: RelFunction[],
               relation: HighLevelRelationish, renames: string[]) {
+    super()
     this.attributes = attributes
     this.functions = functions
     this.relation = relation
@@ -107,7 +130,7 @@ export type ThetaOp = 'eq' | 'neq' | 'leq' | 'geq' | '<' | '>' | 'and' | 'or' |
                       'in'
 
 export class Conditional {
-  readonly type = CONDITIONAL_TYPE
+  readonly type = TypeString.Conditional
   operation: ThetaOp
   lhs: OperandType | Conditional
   rhs: OperandType | Conditional | OperandType[]
@@ -120,26 +143,25 @@ export class Conditional {
   }
 }
 
-export type HighLevelRelationish = Relationish | Restriction | Projection |
-                                   Rename | Operation | Aggregation
-
-export class Restriction {
-  readonly type = RESTRICTION_TYPE
+export class Restriction extends HLR {
+  readonly type = HLRTypeString.Restriction
   conditions: Conditional
   args: HighLevelRelationish
 
   constructor(conditions: Conditional, args: HighLevelRelationish) {
+    super()
     this.conditions = conditions
     this.args = args
   }
 }
 
-export class Projection {
-  readonly type = PROJECTION_TYPE
+export class Projection extends HLR {
+  readonly type = HLRTypeString.Projection
   columns: Array<string|Column>
   args: HighLevelRelationish
 
   constructor(columns: Array<string|Column>, args: HighLevelRelationish) {
+    super()
     this.columns = columns
     this.args = args
   }
@@ -148,8 +170,8 @@ export class Projection {
 type _RenameInputType = Relation | Column | RelFunction |
                            Rename | string
 
-export class Rename {
-  readonly type = RENAME_TYPE
+export class Rename extends HLR {
+  readonly type = HLRTypeString.Rename
   input: _RenameInputType
   output: string
   args: HighLevelRelationish
@@ -157,18 +179,20 @@ export class Rename {
   constructor(input: _RenameInputType,
               output: string,
               args: HighLevelRelationish) {
+    super()
     this.input = input
     this.output = output
     this.args = args
   }
 }
 
-export class Relation {
-  readonly type = RELATION_TYPE
+export class Relation extends HLR {
+  readonly type = HLRTypeString.Relation
   readonly name: string
   readonly target: Catalog.Relation
 
   constructor(name: string, target: Catalog.Relation) {
+    super()
     this.name = name
     this.target = target
   }
@@ -180,8 +204,8 @@ export type JoinCond = "cross" | "left" | "right" | Conditional
 // natural (no condition)
 // theta join (with condition)
 // semi (left and right)
-export class Join {
-  readonly type = JOIN_TYPE
+export class Join extends HLR {
+  readonly type = HLRTypeString.Join
   lhs: HighLevelRelationish
   rhs: HighLevelRelationish
   condition: JoinCond
@@ -189,6 +213,7 @@ export class Join {
   constructor(lhs: HighLevelRelationish,
               rhs: HighLevelRelationish,
               cond: JoinCond) {
+    super()
     this.lhs = lhs
     this.rhs = rhs
     this.condition = cond
