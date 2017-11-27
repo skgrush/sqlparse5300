@@ -105,7 +105,7 @@ function _joinArgHelper(hs: Sql.Join | Sql.Relation,
                         columns: ColumnLookup,
                         catalog: Catalog.Catalog,
                         arg: Sql.Join,
-                        side): Rel.Relationish {
+                        side): Rel.Relation | Rel.Join {
   if (hs instanceof Sql.Join)
     return fromJoin(hs, relations, columns, catalog)
   else if (hs instanceof Sql.Relation)
