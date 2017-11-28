@@ -100,6 +100,7 @@ function involves_Operand(operand: Rel.OperandType|Rel.HighLevelRelationish
   else if (operand instanceof Rel.HLR) {
     return involves(operand as Rel.HighLevelRelationish)
   }
+  console.error("involves_Operand", operand)
   throw new Error("Unexpected argument to involves_Operand")
 }
 
@@ -121,6 +122,24 @@ function involves_Relation(relation: Rel.Relation): InvolvementTuple {
   return invTuple
 }
 
+function involves_Function(funct: Rel.RelFunction): InvolvementTuple {
+  const invTuple = newInvolvementTuple()
+  const {fname, expr} = funct
+
+  if (expr === '*') {
+    if (!funct.hlr)
+      throw new Error("RelFunction of '*' with no hlr-hint")
+    _unionZip(invTuple, involves(funct.hlr))
+  } else if (expr instanceof Rel.Column)
+    _unionZip(invTuple, involves_Column(expr))
+  else {
+    console.error("involves_Function", funct)
+    throw new Error("Unexpected argument to involves_Function")
+  }
+
+  return invTuple
+}
+
 function involves_Column(col: Rel.Column): InvolvementTuple {
   const invTuple = newInvolvementTuple()
   const target = col.target
@@ -131,15 +150,9 @@ function involves_Column(col: Rel.Column): InvolvementTuple {
   if (target instanceof Catalog.Column)
     invTuple[1].add(target)
   else if (target instanceof Rel.RelFunction) {
-    if (target.expr === '*' && col.relation)
-      for (const ccolumn of col.relation.target.columns.values()) {
-        invTuple[1].add(ccolumn)
-      }
-    else if (target.expr instanceof Rel.Column)
-      _unionZip(invTuple, involves_Column(target.expr))
-    else
-      console.log("unsure code path, involves_Column(", col, ")")
+    involves_Function(target)
   } else if (typeof target === 'string') {
+    // don't do anything
   } else
     throw new Error("Unexpected argument to involves_Column")
 
@@ -165,22 +178,28 @@ function involves_Join(join: Rel.Join): InvolvementTuple {
 function involves_Conditional(conditional: Rel.Conditional): InvolvementTuple {
   const invTuple = newInvolvementTuple()
 
-  if (conditional.lhs instanceof Rel.Conditional)
-    _unionZip(invTuple, involves_Conditional(conditional.lhs))
+  const {lhs, rhs} = conditional
+
+  if (lhs instanceof Rel.Conditional)
+    _unionZip(invTuple, involves_Conditional(lhs))
+  else if (lhs instanceof Rel.RelFunction)
+    _unionZip(invTuple, involves_Function(lhs))
   else {
-    const inv = involves_Operand(conditional.lhs)
+    const inv = involves_Operand(lhs)
     if (inv) _unionZip(invTuple, inv)
   }
 
-  if (conditional.rhs instanceof Rel.Conditional)
-    _unionZip(invTuple, involves_Conditional(conditional.rhs))
-  else if (Array.isArray(conditional.rhs))
-    for (const operand of conditional.rhs) {
+  if (rhs instanceof Rel.Conditional)
+    _unionZip(invTuple, involves_Conditional(rhs))
+  else if (rhs instanceof Rel.RelFunction)
+    _unionZip(invTuple, involves_Function(rhs))
+  else if (Array.isArray(rhs))
+    for (const operand of rhs) {
       const inv = involves_Operand(operand)
       if (inv) _unionZip(invTuple, inv)
     }
   else {
-    const inv = involves_Operand(conditional.rhs)
+    const inv = involves_Operand(rhs)
     if (inv) _unionZip(invTuple, inv)
   }
 

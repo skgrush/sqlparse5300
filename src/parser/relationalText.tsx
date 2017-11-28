@@ -304,8 +304,8 @@ export function htmlRelJoin(join: Rel.Join) {
 
 export function htmlRelOperation(op: Rel.Operation) {
   const OPSYM = getSymbol(op.op)
-  const LHS = htmlRelOperand(op.lhs as any)
-  const RHS = htmlRelOperand(op.rhs as any)
+  const LHS = htmlRelOperand(op.lhs)
+  const RHS = htmlRelOperand(op.rhs)
 
   return (
     <span className="RelOperation">
@@ -316,7 +316,7 @@ export function htmlRelOperation(op: Rel.Operation) {
   )
 }
 
-export function htmlRelOperand(operand: Rel.OperandType) {
+export function htmlRelOperand(operand: Rel.OperandType|Rel.HighLevelRelationish) {
   if (typeof(operand) === 'string')
     return operand
   if (operand instanceof Rel.RelFunction)
@@ -331,24 +331,34 @@ export function htmlRelOperand(operand: Rel.OperandType) {
 
 export function htmlRelConditional(cond: Rel.Conditional) {
   const OPSYM = getSymbol(cond.operation)
-  const LHS = cond.lhs instanceof Rel.Conditional
-          ? htmlRelConditional(cond.lhs)
-          : htmlRelOperand(cond.lhs)
-  const RHS = cond.rhs instanceof Rel.Conditional
-          ? htmlRelConditional(cond.rhs)
-          : ( cond.rhs instanceof Array
-              ? cond.rhs.map(htmlRelOperand)
-              : htmlRelOperand(cond.rhs)
-            )
+
+  let lhs
+  let rhs
+
+  if (cond.lhs instanceof Rel.Conditional)
+    lhs = htmlRelConditional(cond.lhs)
+  else if (cond.lhs instanceof Rel.RelFunction)
+    lhs = htmlRelFunction(cond.lhs)
+  else
+    lhs = htmlRelOperand(cond.lhs)
+
+  if (cond.rhs instanceof Rel.Conditional)
+    rhs = htmlRelConditional(cond.rhs)
+  else if (Array.isArray(cond.rhs))
+    rhs = cond.rhs.map(htmlRelOperand)
+  else if (cond.rhs instanceof Rel.RelFunction)
+    rhs = htmlRelFunction(cond.rhs)
+  else
+    rhs = htmlRelOperand(cond.rhs)
 
   return (
     <span className="RelConditional">
       <span className="lhs">
-        {LHS}
+        {lhs}
       </span>
       <span className="operator">{OPSYM}</span>
       <span className="rhs">
-        {RHS}
+        {rhs}
       </span>
     </span>
   )

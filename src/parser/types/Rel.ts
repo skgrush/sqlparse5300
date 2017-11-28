@@ -84,10 +84,15 @@ export class RelFunction {
   readonly type = TypeString.Function
   fname: AggFuncName
   expr: '*' | Column // TODO: support correct args
+  hlr?: HighLevelRelationish
 
-  constructor(fname: AggFuncName, expr: '*' | Column) {
+  constructor(fname: AggFuncName,
+              expr: '*' | Column,
+              hlr?: HighLevelRelationish) {
     this.fname = fname
     this.expr = expr
+    if (hlr)
+      this.hlr = hlr
   }
 
   getName(): string {
@@ -132,11 +137,12 @@ export type ThetaOp = 'eq' | 'neq' | 'leq' | 'geq' | '<' | '>' | 'and' | 'or' |
 export class Conditional {
   readonly type = TypeString.Conditional
   operation: ThetaOp
-  lhs: OperandType | Conditional
-  rhs: OperandType | Conditional | OperandType[]
+  lhs: OperandType | RelFunction | Conditional
+  rhs: OperandType | RelFunction | Conditional | OperandType[]
 
-  constructor(op: ThetaOp, lhs: OperandType | Conditional,
-              rhs: OperandType | Conditional | OperandType[]) {
+  constructor(op: ThetaOp,
+              lhs: OperandType | RelFunction | Conditional,
+              rhs: OperandType | RelFunction | Conditional | OperandType[]) {
     this.operation = op
     this.lhs = lhs
     this.rhs = rhs
