@@ -56,7 +56,7 @@ function newInvolvementTuple(relations: Iterable<Catalog.Relation> = [],
 type Involvable = Rel.HighLevelRelationish | Rel.Column | Rel.Conditional |
                   Rel.RelFunction
 
-function involves(involved: Involvable): InvolvementTuple {
+export function involves(involved: Involvable): InvolvementTuple {
   if (involved instanceof Rel.HLR)
     switch (involved.type) {
       case Rel.HLRTypeString.Aggregation:

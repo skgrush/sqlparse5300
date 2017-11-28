@@ -1,4 +1,6 @@
 
+import {Rel} from './types'
+
 export const selectTests = [
 
 `-- Query 2a
@@ -170,3 +172,8 @@ WHERE     S.age > 18
 GROUP BY  S.rating
 HAVING    Count (*) > 1`
 ]
+
+export type ResultTuple = [null|Error|object,
+                           null|Error|Rel.HighLevelRelationish]
+export const selectResults: ResultTuple[] =
+  selectTests.map(() => [null, null] as ResultTuple)

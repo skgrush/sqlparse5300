@@ -2,6 +2,7 @@ import * as React from "react"
 import * as JSONPretty from 'react-json-pretty'
 const Tracer = require('pegjs-backtrace')
 
+import {ResultTuple} from '../parser/tests'
 import {Catalog} from '../parser/types'
 import {parseSql, SqlSyntaxError, sqlToRelationalAlgebra} from '../parser/parsing'
 import {htmlHLR} from '../parser/relationalText'
@@ -15,6 +16,7 @@ interface TestCaseProps {
   queryInputText: string
   doRun: boolean
   anchor: string
+  resultTuple: ResultTuple
   showStructures: boolean | undefined
   name?: string
 }
@@ -91,11 +93,11 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       showTrace: true
     })
 
-    let status = ''
+    let status
     let treeStatus = ''
-    let queryJSON = null
-    let relAlJSON = null
-    let relAlHTML = null
+    let queryJSON
+    let relAlJSON
+    let relAlHTML
     let root: Node | null = null
     let color = 'currentcolor'
     let tscolor = 'currentcolor'
@@ -103,6 +105,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
 
     try {
       queryJSON = parseSql(props.queryInputText, {tracer})
+      this.props.resultTuple[0] = queryJSON
       status = "SQL Scanned and Tokenized"
       color = "green"
     } catch (ex) {
@@ -117,10 +120,12 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
 
     if (queryJSON) {
       try {
-        relAlJSON = sqlToRelationalAlgebra(queryJSON, catalog) as any
+        relAlJSON = sqlToRelationalAlgebra(queryJSON, catalog)
+        this.props.resultTuple[1] = relAlJSON
         status = "SQL Parsed and converted to Relational Algebra"
         color = "green"
       } catch (ex) {
+        this.props.resultTuple[0] = ex
         status = `Relational Algebra ${ex}`
         color = "red"
         console.error(ex)
@@ -132,19 +137,21 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
         status = "Relational Algebra rendered to HTML"
         color = "green"
       } catch (ex) {
+        this.props.resultTuple[1] = ex
         status = `HTML Conversion Error: ${ex}`
         color = "red"
         console.error(ex)
       }
-      try {
-        root = new Node(relAlJSON)
-        status = "Tree Generated"
-        color = "green"
-      } catch (ex) {
-        treeStatus = `Tree Error: ${ex}`
-        tscolor = "red"
-        console.error(ex)
-      }
+      if (relAlJSON)
+        try {
+          root = new Node(relAlJSON)
+          status = "Tree Generated"
+          color = "green"
+        } catch (ex) {
+          treeStatus = `Tree Error: ${ex}`
+          tscolor = "red"
+          console.error(ex)
+        }
     }
 
     this.setState({
@@ -157,7 +164,7 @@ export default class TestCase extends React.Component<TestCaseProps, TestCaseSta
       color,
       tscolor,
       debug
-     })
+    })
   }
 
   toggleStructures(e) {

@@ -80,6 +80,7 @@ export default class Main extends React.Component<any, MainState> {
             queryInputText={this.state.queryInputText}
             doRun={true} // bad idea??
             anchor="main-test"
+            resultTuple={(window as any).mainResult}
             name="Main Test"
             showStructures={undefined}
           />

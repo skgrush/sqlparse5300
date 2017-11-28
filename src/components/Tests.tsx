@@ -2,7 +2,7 @@ import * as React from "react"
 
 import {Catalog} from '../parser/types'
 import TestCase from './TestCase'
-import {selectTests} from "../parser/tests"
+import {selectTests, selectResults} from "../parser/tests"
 
 export function getTestName(testStr: string) {
   if (testStr.startsWith('--'))
@@ -94,6 +94,7 @@ export default class Tests extends React.Component<TestsProps, TestsState> {
                 doRun={this.state.doRun}
                 key={idx}
                 anchor={`q${idx}`}
+                resultTuple={selectResults[idx]}
                 name={this.state.queryNames[idx] || undefined}
                 showStructures={this.state.showStructures}
               />
