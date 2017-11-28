@@ -39,7 +39,7 @@ export class Column {
   static fromNameTypePair(columnMap: ColumnMap,
                           newRelation: Relation,
                           col: NameTypePair): Column {
-    const newCol = new Column(col[1], col[1], newRelation)
+    const newCol = new Column(col[0], col[1], newRelation)
     columnMap.set(col[0], newCol)
     return newCol
   }
