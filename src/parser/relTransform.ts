@@ -173,3 +173,85 @@ function commuteRestrictionProjection(hlr: Rel.Restriction | Rel.Projection) {
     throw new Error("bad commuteRestrictionProjection argument type")
   }
 }
+
+function checkJoinCommutativity(join: Rel.Join) {
+  return (join.condition instanceof Rel.Conditional ||
+      join.condition === "cross")
+}
+
+/** Transformation Rule #5: Commutativity of ⋈ (and ⨉) */
+function commuteJoin(join: Rel.Join, returnNew = false) {
+  if (returnNew)
+    return new Rel.Join(join.rhs, join.lhs, join.condition)
+  else
+    return Object.assign(join, {
+      lhs: join.rhs,
+      rhs: join.lhs
+    })
+}
+
+type restJoinCommutativityReturn = 'lhs'|'rhs'|'split'|'split-swap'|boolean
+
+function checkRestJoinCommutativity(restr: Rel.Restriction) {
+  if (!(restr.args instanceof Rel.Join))
+    return false
+
+  const condition = restr.conditions
+  const {lhs, rhs} = restr.args
+
+  // TODO: make more efficient
+  const conditionInv = involves(condition)[1]
+  const lhsInv = involves(lhs)[1]
+  const rhsInv = involves(rhs)[1]
+
+  let condLhsInCommon = 0
+  let condRhsInCommon = 0
+  conditionInv.forEach((col) => {
+    if (lhsInv.has(col))
+      condLhsInCommon++
+    if (rhsInv.has(col))
+      condRhsInCommon++
+  })
+
+  if (!condLhsInCommon && !condRhsInCommon) {
+    console.log("What! Restriction unrelated to either arg???")
+    return true
+  } else if (!condRhsInCommon && condLhsInCommon === conditionInv.size)
+    return 'lhs'
+  else if (!condLhsInCommon && condRhsInCommon === conditionInv.size)
+    return 'rhs'
+
+  if (condition.operation !== 'and')
+    return false
+
+  const condLeftInv = involves(condition.lhs as Rel.Conditional)[1]
+  const condRightInv = involves(condition.rhs as Rel.Conditional)[1]
+
+  let lhsCondLeftInCommon = 0
+  let lhsCondRightInCommon = 0
+  let rhsCondLeftInCommon = 0
+  let rhsCondRightInCommon = 0
+  condLeftInv.forEach((col) => {
+    if (lhsInv.has(col))
+      lhsCondLeftInCommon++
+    if (rhsInv.has(col))
+      rhsCondLeftInCommon++
+  })
+  condRightInv.forEach((col) => {
+    if (lhsInv.has(col))
+      lhsCondRightInCommon++
+    if (rhsInv.has(col))
+      rhsCondRightInCommon++
+  })
+
+  if (!lhsCondRightInCommon && lhsCondLeftInCommon === condLeftInv.size &&
+      !rhsCondLeftInCommon && rhsCondRightInCommon === condRightInv.size)
+    return 'split'
+  if (!lhsCondLeftInCommon && lhsCondRightInCommon === condRightInv.size &&
+      !rhsCondRightInCommon && rhsCondLeftInCommon === condLeftInv.size)
+    return 'split-swap'
+
+  return false
+}
+
+/** Transformation Rule #6: Commuting σ with ⋈ (or ⨉) */
