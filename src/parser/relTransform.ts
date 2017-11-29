@@ -157,7 +157,7 @@ function checkRestProjCommutativity(hlr: Rel.Restriction | Rel.Projection) {
 
 /** Transformation Rule #4: Commutating σ with π */
 function commuteRestrictionProjection(hlr: Rel.Restriction | Rel.Projection) {
-  // no way to perform destructively.
+  // no way to perform destructively; always returns new.
   const innerHLR = (hlr.args as Rel.Restriction | Rel.Projection).args
 
   if (hlr instanceof Rel.Restriction) {
@@ -255,3 +255,40 @@ function checkRestJoinCommutativity(restr: Rel.Restriction) {
 }
 
 /** Transformation Rule #6: Commuting σ with ⋈ (or ⨉) */
+function commuteRestrictionJoin(restr: Rel.Restriction,
+                                type: restJoinCommutativityReturn) {
+  // no way to perform destructively; always returns new.
+  if (!type)
+    throw new Error("commuteRestrictionJoin on type = false")
+  if (type === true)
+    throw new Error("Ambiguous Commutativity")
+
+  const rCondition = restr.conditions
+  const rJoin = restr.args as Rel.Join
+
+  let newLhs
+  let newRhs
+
+  if (type === 'split' || type === 'split-swap') {
+    let newCondLhs
+    let newCondRhs
+    if (type === 'split') {
+      [newCondLhs, newCondRhs] = [rCondition.lhs, rCondition.rhs]
+    } else {
+      [newCondLhs, newCondRhs] = [rCondition.rhs, rCondition.lhs]
+    }
+    newLhs = new Rel.Restriction(newCondLhs, rJoin.lhs)
+    newRhs = new Rel.Restriction(newCondRhs, rJoin.rhs)
+  } else if (type === 'lhs') {
+    newLhs = new Rel.Restriction(rCondition, rJoin.lhs)
+    newRhs = rJoin.rhs
+  } else if (type === 'rhs') {
+    newLhs = rJoin.lhs
+    newRhs = new Rel.Restriction(rCondition, rJoin.rhs)
+  } else {
+    console.error("commuteRestrictionJoin:", restr, type)
+    throw new Error("Unexpected 'type' argument")
+  }
+
+  return new Rel.Join(newLhs, newRhs, rJoin.condition)
+}
