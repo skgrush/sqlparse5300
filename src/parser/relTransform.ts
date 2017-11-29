@@ -29,6 +29,7 @@ function recursiveConditionSplit(cond: Rel.Conditional,
   return args
 }
 
+/** Transformation Rule #1: Cascade of σ */
 function cascadeRestrictions(restr: Rel.Restriction,
                              returnNew = false): Rel.Restriction {
 
@@ -50,8 +51,34 @@ function cascadeRestrictions(restr: Rel.Restriction,
   if (returnNew)
     return new Rel.Restriction(topCondition, newHLR)
 
-  restr.conditions = topCondition
-  restr.args = newHLR
+  return Object.assign(restr, {
+    conditions: topCondition,
+    args: newHLR
+  })
+}
 
-  return restr
+/** Transformation Rule #1: Cascade of σ (reverse) */
+function rollupRestrictions(restr: Rel.Restriction,
+                            returnNew = false): Rel.Restriction {
+
+  // doesn't include restr.conditions
+  const conditionList: Rel.Conditional[] = []
+
+  let bottomHLR: Rel.HighLevelRelationish = restr.args
+  while (bottomHLR instanceof Rel.Restriction) {
+    conditionList.push(bottomHLR.conditions)
+    bottomHLR = bottomHLR.args
+  }
+
+  const newCondition = conditionList.reduce((accumulator, currentValue) => {
+    return new Rel.Conditional('and', accumulator, currentValue)
+  }, restr.conditions)
+
+  if (returnNew)
+    return new Rel.Restriction(newCondition, bottomHLR)
+
+  return Object.assign(restr, {
+    conditions: newCondition,
+    args: bottomHLR
+  })
 }

@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "description": "A/n SQL parser",
   "main": "index.js",
-  "repository": "skgrush/sqlparse5300",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/skgrush/sqlparse5300.git"
+  },
   "contributors": [
     "Samuel K. Grush",
     "Jared Rainwater"
