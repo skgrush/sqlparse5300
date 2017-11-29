@@ -1,5 +1,6 @@
 
-import {Rel} from './types'
+import {Rel, Catalog} from './types'
+import {involves} from './relAnalysis'
 
 /**
  * arrayExtend(a, b)
@@ -30,8 +31,7 @@ function recursiveConditionSplit(cond: Rel.Conditional,
 }
 
 /** Transformation Rule #1: Cascade of σ */
-function cascadeRestrictions(restr: Rel.Restriction,
-                             returnNew = false): Rel.Restriction {
+function cascadeRestrictions(restr: Rel.Restriction, returnNew = false) {
 
   if (restr.conditions.operation !== 'and')
     return restr
@@ -58,8 +58,7 @@ function cascadeRestrictions(restr: Rel.Restriction,
 }
 
 /** Transformation Rule #1: Cascade of σ (reverse) */
-function rollupRestrictions(restr: Rel.Restriction,
-                            returnNew = false): Rel.Restriction {
+function rollupRestrictions(restr: Rel.Restriction, returnNew = false) {
 
   // doesn't include restr.conditions
   const conditionList: Rel.Conditional[] = []
@@ -81,4 +80,96 @@ function rollupRestrictions(restr: Rel.Restriction,
     conditions: newCondition,
     args: bottomHLR
   })
+}
+
+/** Transformation Rule #2: Commutativity of σ */
+function commuteRestriction(restr: Rel.Restriction, returnNew = false) {
+
+  if (!(restr.args instanceof Rel.Restriction)) {
+    console.error("commuteRestriction:", restr)
+    throw new Error("Non-Restriction argument")
+  }
+
+  if (returnNew) {
+    const inner = new Rel.Restriction(restr.conditions, restr.args.args)
+    return new Rel.Restriction(restr.args.conditions, inner)
+  }
+
+  [restr.conditions, restr.args.conditions] =
+    [restr.args.conditions, restr.conditions]
+
+  return restr
+}
+
+/** Transformation Rule #3: Cascade of π */
+function condenseProjection(proj: Rel.Projection, returnNew = false) {
+
+  let bottomHLR: Rel.HighLevelRelationish = proj.args
+  while (bottomHLR instanceof Rel.Projection) {
+    bottomHLR = bottomHLR.args
+  }
+
+  if (returnNew)
+    return new Rel.Projection(proj.columns, bottomHLR)
+
+  return Object.assign(proj, {
+    args: bottomHLR
+  })
+}
+
+function checkRestProjCommutativity(hlr: Rel.Restriction | Rel.Projection) {
+  let condition: Rel.Conditional
+  let columns: Array<string|Rel.Column>
+  if (hlr instanceof Rel.Restriction) {
+    if (!(hlr.args instanceof Rel.Projection)) {
+      console.error("cRPC:", hlr, hlr.args)
+      throw new Error("invalid Restriction argument")
+    }
+    condition = hlr.conditions
+    columns = hlr.args.columns
+  } else if (hlr instanceof Rel.Projection) {
+    if (!(hlr.args instanceof Rel.Restriction)) {
+      console.error("cRPC:", hlr, hlr.args)
+      throw new Error("invalid Projection argument")
+    }
+    condition = hlr.args.conditions
+    columns = hlr.columns
+  } else {
+    console.error("cRPC:", hlr)
+    throw new Error("bad checkRestProjCommutativity argument type")
+  }
+
+  const cataColumns = new Set(
+    columns.map((c: Rel.Column) => {
+      if (typeof c.target === 'string')
+        return null
+      return c.target
+    })
+  )
+
+  const [invRels, invCols] = involves(condition)
+  for (const col of invCols) {
+    if (!cataColumns.has(col))
+      return false
+  }
+  return true
+}
+
+/** Transformation Rule #4: Commutating σ with π */
+function commuteRestrictionProjection(hlr: Rel.Restriction | Rel.Projection) {
+  // no way to perform destructively.
+  const innerHLR = (hlr.args as Rel.Restriction | Rel.Projection).args
+
+  if (hlr instanceof Rel.Restriction) {
+    const columns = (hlr.args as Rel.Projection).columns
+    const innerRestr = new Rel.Restriction(hlr.conditions, innerHLR)
+    return new Rel.Projection(columns, innerRestr)
+  } else if (hlr instanceof Rel.Projection) {
+    const conds = (hlr.args as Rel.Restriction).conditions
+    const innerProj = new Rel.Projection(hlr.columns, innerHLR)
+    return new Rel.Restriction(conds, innerProj)
+  } else {
+    console.error("cRP:", hlr)
+    throw new Error("bad commuteRestrictionProjection argument type")
+  }
 }
