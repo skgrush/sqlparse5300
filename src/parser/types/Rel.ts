@@ -133,17 +133,18 @@ export class Aggregation extends HLR {
 
 export type ThetaOp = 'eq' | 'neq' | 'leq' | 'geq' | '<' | '>' | 'and' | 'or' |
                       'in'
+export type ConditionalArgumentType = OperandType | RelFunction | Conditional
 
 export class Conditional {
   readonly type = TypeString.Conditional
   operation: ThetaOp
-  lhs: OperandType | RelFunction | Conditional
-  rhs: OperandType | RelFunction | Conditional | OperandType[]
+  lhs: ConditionalArgumentType
+  rhs: ConditionalArgumentType | OperandType[]
 
   constructor(op: ThetaOp,
-              lhs: OperandType | RelFunction | Conditional,
-              rhs: OperandType | RelFunction | Conditional | OperandType[]) {
-    this.operation = op
+              lhs: ConditionalArgumentType,
+              rhs: ConditionalArgumentType | OperandType[]) {
+    this.operation = op.toLowerCase() as ThetaOp
     this.lhs = lhs
     this.rhs = rhs
   }
