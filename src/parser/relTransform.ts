@@ -1,6 +1,6 @@
 
 import {Rel, Catalog, PairingString} from './types'
-import {involves} from './relAnalysis'
+import {involves, isJoinCondition} from './relAnalysis'
 import dupe from './relDupe'
 
 const PairingStrings: ReadonlyArray<PairingString>
@@ -444,16 +444,20 @@ function commuteProjectionUnionDown(proj: Rel.Projection) {
   )
 }
 
-function
-
 /** Transformation Rule #12: Converting a (σ, ×) sequence into ⋈.
  *  No way to perform destructively; always returns new without dupe.
  */
 function combineRestrictionCross(restr: Rel.Restriction) {
   const condition = restr.conditions
-  const union = restr.args as Rel.PairingOperation
-  if (!(union instanceof Rel.Operation) || union.op !== 'union')
+  const join = restr.args
+  if (!(join instanceof Rel.Join) || join.condition !== 'cross')
     throw new Error("Invalid combineRestrictionCross() argument")
 
-  
+  const isJoin = isJoinCondition(condition,
+                                 involves(join.lhs),
+                                 involves(join.rhs))
+
+  if (!isJoin) return false
+
+  return new Rel.Join(join.lhs, join.rhs, condition)
 }

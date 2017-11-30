@@ -7,18 +7,42 @@ type InvolvementTuple = [RelationSet, ColumnSet]
 
 type IterableTuple<T = any, U = T> = [Iterable<T>, Iterable<U>]
 
-function isJoinCondition(cond: Rel.Conditional,
-                         lhs: InvolvementTuple,
-                         rhs: InvolvementTuple) {
+export function isJoinCondition(cond: Rel.Conditional,
+                                left: InvolvementTuple,
+                                right: InvolvementTuple) {
   if (typeof cond.lhs === 'string' || typeof cond.rhs === 'string' ||
       cond.operation === 'or' || cond.operation === 'and' ||
       cond.operation === 'in' || Array.isArray(cond.rhs))
     return false
 
-  const condLhs = involves(cond.lhs)
-  const condRhs = involves(cond.rhs)
+  const condLhs = involves(cond.lhs)[0]
+  const condRhs = involves(cond.rhs)[0]
 
-  cond.operation
+  const condLhs_left_exclusive = new Set()
+  const condLhs_right_exclusive = new Set()
+  const condRhs_left_exclusive = new Set()
+  const condRhs_right_exclusive = new Set()
+  condLhs.forEach((rel) => {
+    if (left[0].has(rel) && !right[0].has(rel) && !condRhs.has(rel))
+      condLhs_left_exclusive.add(rel)
+    else if (right[0].has(rel) && !left[0].has(rel) && !condLhs.has(rel))
+      condLhs_right_exclusive.add(rel)
+  })
+  condRhs.forEach((rel) => {
+    if (left[0].has(rel) && !right[0].has(rel) && !condLhs.has(rel))
+      condRhs_left_exclusive.add(rel)
+    else if (right[0].has(rel) && !left[0].has(rel) && !condRhs.has(rel))
+      condRhs_right_exclusive.add(rel)
+  })
+
+  if (condLhs_left_exclusive.size && condRhs_right_exclusive.size &&
+      !condLhs_right_exclusive.size && !condRhs_left_exclusive.size)
+    return 'join'
+  if (!condLhs_left_exclusive.size && !condRhs_right_exclusive.size &&
+      condLhs_right_exclusive.size && condRhs_left_exclusive.size)
+    return 'join-swap'
+
+  return false
 }
 
 /**
