@@ -1,5 +1,5 @@
 import {QTOperation, Relation, Join, Restriction, Projection, Rename,
-        Operation} from './operation'
+        Operation, Aggregation} from './operation'
 
 import {Rel} from '../parser/types'
 
@@ -38,6 +38,9 @@ export default class Node {
     } else if (this.hlr instanceof Rel.Rename) {
       this.operation = new Rename(this.hlr)
       this.addNode(new Node(this.hlr.args, this.depth + 1))
+    } else if (this.hlr instanceof Rel.Aggregation) {
+      this.operation = new Aggregation(this.hlr)
+      this.addNode(new Node(this.hlr.relation, this.depth + 1))
     } else if (this.hlr instanceof Rel.Operation) {
       this.operation = new Operation(this.hlr)
       this.addNode(new Node(this.hlr.lhs as Rel.HighLevelRelationish, this.depth + 1))

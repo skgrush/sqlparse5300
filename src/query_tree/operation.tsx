@@ -1,7 +1,8 @@
 import * as React from 'react'
 import {Rel} from '../parser/types'
 import {htmlRelRelation, htmlRelProjection, relJoinHelper, htmlRelRestriction,
-        htmlRelRename, getSymbol } from '../parser/relationalText'
+        htmlRelRename, getSymbol, htmlRelAggregation
+       } from '../parser/relationalText'
 
 // if RelRelation:    just name
 // if RelJoin:        ....
@@ -82,6 +83,14 @@ export class Operation extends QTOperation {
     return (
       <span className="operator">{SYM}</span>
     )
+  }
+}
+
+export class Aggregation extends QTOperation {
+  hlr: Rel.Aggregation
+  constructor(hlr: Rel.Aggregation) {
+    super(hlr)
+    this.html = htmlRelAggregation(hlr, true)
   }
 }
 
