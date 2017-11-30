@@ -3,10 +3,15 @@ import {Rel} from './types'
 
 export const selectTests = [
 
-`-- Query 2a
-SELECT    S.sname
-FROM      Sailors AS S, Reserves AS R
-WHERE     S.sid=R.sid AND R.bid=103`,
+`-- Query a
+SELECT      S.sid, S.sname, S.rating, S.age
+FROM        Sailors AS S
+WHERE       S.rating > 7`,
+
+`-- Query b
+SELECT      S.sid, S.sname
+FROM        Sailors AS S
+WHERE       S.color = ‘green’`,
 
 `-- Query 2b
 SELECT    S.sname
