@@ -207,7 +207,24 @@ These transformations are based on those described in Elmasri on page 698--699.
   only to 1 of the arguments, you can apply the selection to just that argument
 \end{enumerate}
 
+The following optimizations or based on page 700
 
+\begin{enumerate}
+  \item transformation 1 can be used to break select statements into cascades, allowing for more freedom in applying
+  other optimizations
+
+  \item Rules pertaining to the commutativity of selection can be used to push them as far down the tree as possible.
+  This can be a leaf node if it deals with one relation or a join if it deals with more.
+
+  \item Rules 5 and 9 are used to execute the most restrictive selections first to reduce the amount of processing
+  as early as possible
+
+  \item Use Rule 12 wherever possible to convert cross products to joins
+
+  \item With rules 3, 4, 7 and 11 you can move restrictions as far down the tree as possible
+
+  \item Identify any groups of operations that can be implemented with a single operation
+\end{enumerate}
 \pagebreak
 
 \section{Source Code}
