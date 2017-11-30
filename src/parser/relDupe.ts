@@ -6,7 +6,7 @@ type Copiable = string | Catalog.Relation | Catalog.Column
 type Dupable = Rel.HighLevelRelationish | Rel.Column | Rel.Conditional |
                Rel.RelFunction | Rel.PairingOperation | Copiable
 
-export default function dupe<T extends Dupable>(thing: T): T {
+export default function dupe(thing: Dupable) {
   if (thing instanceof Rel.HLR)
     switch (thing.type) {
       case Rel.HLRTypeString.Aggregation:
@@ -58,7 +58,7 @@ function dupe_Column(column: Rel.Column) {
   )
 }
 
-function duple_Function(funct: Rel.RelFunction) {
+function dupe_Function(funct: Rel.RelFunction) {
   return new Rel.RelFunction(
     funct.fname,
     dupe(funct.expr),

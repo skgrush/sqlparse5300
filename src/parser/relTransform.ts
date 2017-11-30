@@ -164,7 +164,7 @@ function checkRestProjCommutativity(hlr: Rel.Restriction | Rel.Projection) {
 }
 
 /** Transformation Rule #4: Commutating σ with π
- *  No way to perform destructively; always returns new.
+ *  No way to perform destructively; always returns new without dupe.
  */
 function commuteRestrictionProjection(hlr: Rel.Restriction | Rel.Projection) {
   const innerHLR = (hlr.args as Rel.Restriction | Rel.Projection).args
@@ -264,7 +264,7 @@ function checkRestJoinCommutativity(restr: Rel.Restriction): restJoinCommType {
 }
 
 /** Transformation Rule #6: Commuting σ with ⋈ (or ⨉)
- *  No way to perform destructively; always returns new.
+ *  No way to perform destructively; always returns new without dupe.
  */
 function commuteRestrictionJoin(restr: Rel.Restriction,
                                 type: restJoinCommType) {
@@ -368,7 +368,7 @@ function checkJoinishAssociativity(ish: Rel.Joinish): JoinishAssociativity {
 }
 
 /** Transformation Rule #9: Associativity of ⋈, ×, ∪, and ∩
- *  No way to perform destructively; always returns new.
+ *  No way to perform destructively; always returns new without dupe.
  */
 function associateJoinish<T extends Rel.Joinish>(
     ish: T,
@@ -409,7 +409,7 @@ function associateJoinish<T extends Rel.Joinish>(
 }
 
 /** Transformation Rule #10: Commuting σ with set operations.
- *  No way to perform destructively; always returns new.
+ *  No way to perform destructively; always returns new without dupe.
  */
 function commuteRestrictionSetDown(restr: Rel.Restriction) {
   const setop = restr.args as Rel.PairingOperation
@@ -424,4 +424,36 @@ function commuteRestrictionSetDown(restr: Rel.Restriction) {
     new Rel.Restriction(restr.conditions, lhs),
     new Rel.Restriction(condCopy, rhs)
   )
+}
+
+/** Transformation Rule #11: The π operation commutes with ∪.
+ *  No way to perform destructively; always returns new without dupe.
+ */
+function commuteProjectionUnionDown(proj: Rel.Projection) {
+  const union = proj.args as Rel.PairingOperation
+  if (!(union instanceof Rel.Operation) || union.op !== 'union')
+    throw new Error("Invalid commuteProjectionUnionDown() argument")
+
+  const colsCopy = proj.columns.slice()
+  const {lhs, rhs} = union
+
+  return new Rel.Operation(
+    'union',
+    new Rel.Projection(proj.columns, lhs),
+    new Rel.Projection(colsCopy, rhs)
+  )
+}
+
+function
+
+/** Transformation Rule #12: Converting a (σ, ×) sequence into ⋈.
+ *  No way to perform destructively; always returns new without dupe.
+ */
+function combineRestrictionCross(restr: Rel.Restriction) {
+  const condition = restr.conditions
+  const union = restr.args as Rel.PairingOperation
+  if (!(union instanceof Rel.Operation) || union.op !== 'union')
+    throw new Error("Invalid combineRestrictionCross() argument")
+
+  
 }

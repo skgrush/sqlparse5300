@@ -1,17 +1,25 @@
 
 import {Rel, Catalog} from './types'
 
-/*
-
-HLR:
-
-*/
-
 type RelationSet = Set<Catalog.Relation>
 type ColumnSet = Set<Catalog.Column>
 type InvolvementTuple = [RelationSet, ColumnSet]
 
 type IterableTuple<T = any, U = T> = [Iterable<T>, Iterable<U>]
+
+function isJoinCondition(cond: Rel.Conditional,
+                         lhs: InvolvementTuple,
+                         rhs: InvolvementTuple) {
+  if (typeof cond.lhs === 'string' || typeof cond.rhs === 'string' ||
+      cond.operation === 'or' || cond.operation === 'and' ||
+      cond.operation === 'in' || Array.isArray(cond.rhs))
+    return false
+
+  const condLhs = involves(cond.lhs)
+  const condRhs = involves(cond.rhs)
+
+  cond.operation
+}
 
 /**
  * Set([A, B]) = _union([A], [B])
