@@ -201,6 +201,10 @@ export class Rename extends HLR {
 }
 
 export class Relation extends HLR {
+  static fromCata(target: Catalog.Relation): Relation {
+    return new Relation(target.name, target)
+  }
+
   readonly type = HLRTypeString.Relation
   readonly name: string
   readonly target: Catalog.Relation

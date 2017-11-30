@@ -306,7 +306,71 @@ function commuteRestrictionJoin(restr: Rel.Restriction,
 }
 
 /** Transformation Rule #7: Commuting π with ⋈ (or ⨉) */
-// TODO
+function commuteProjectionJoin(proj: Rel.Projection) {
+  if (!(proj.args instanceof Rel.Join))
+    throw new Error("Bad commuteProjectionJoin() argument")
+  const joinCond = proj.args.condition
+
+  const joinCondInv
+    = joinCond instanceof Rel.Conditional
+      ? involves(joinCond)[1]
+      : null
+
+  const lhsInv = involves(proj.args.lhs)[1]
+  const rhsInv = involves(proj.args.rhs)[1]
+
+  const projColumns = new Set(
+    proj.columns.map((col) => (typeof col === 'string') ? null : col)
+  )
+
+  const lhsColumns: Rel.Column[] = []
+  const rhsColumns: Rel.Column[] = []
+  const lhsExtras: Rel.Column[] = []
+  const rhsExtras: Rel.Column[] = []
+
+  for (const col of projColumns) {
+    if (!col) continue
+    if (lhsInv.has(col.target as any))
+      lhsColumns.push(col)
+    if (rhsInv.has(col.target as any))
+      lhsColumns.push(col)
+  }
+  if (joinCondInv)
+    for (const col of joinCondInv) {
+      const inLhs = inArray(col, lhsColumns)
+      const inRhs = inArray(col, rhsColumns)
+      if (!(inLhs || inRhs)) {
+        const newCol
+          = (col instanceof Catalog.Column)
+            ? new Rel.Column(Rel.Relation.fromCata(col.relation), col)
+            : new Rel.Column(null, col)
+        if (lhsInv.has(col))
+          lhsExtras.push(newCol)
+        if (rhsInv.has(col))
+          rhsExtras.push(newCol)
+      }
+    }
+
+  if (!lhsExtras.length && !rhsExtras.length) {
+    // condition only involves attributes in projection list
+    return new Rel.Join(
+      new Rel.Projection(lhsColumns, proj.args.lhs),
+      new Rel.Projection(rhsColumns, proj.args.rhs),
+      joinCond
+    )
+  } else {
+    arrayExtend(lhsColumns, lhsExtras)
+    arrayExtend(rhsColumns, rhsExtras)
+    return new Rel.Projection(
+      proj.columns,
+      new Rel.Join(
+        new Rel.Projection(lhsColumns, proj.args.lhs),
+        new Rel.Projection(rhsColumns, proj.args.rhs),
+        joinCond
+      )
+    )
+  }
+}
 
 function checkSetCommutativity(op: Rel.Operation) {
   return ((op.lhs instanceof Rel.HLR) &&
