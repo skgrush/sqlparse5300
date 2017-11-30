@@ -159,9 +159,10 @@ function checkRestProjCommutativity(hlr: Rel.Restriction | Rel.Projection) {
   return true
 }
 
-/** Transformation Rule #4: Commutating σ with π */
+/** Transformation Rule #4: Commutating σ with π
+ *  No way to perform destructively; always returns new.
+ */
 function commuteRestrictionProjection(hlr: Rel.Restriction | Rel.Projection) {
-  // no way to perform destructively; always returns new.
   const innerHLR = (hlr.args as Rel.Restriction | Rel.Projection).args
 
   if (hlr instanceof Rel.Restriction) {
@@ -258,10 +259,11 @@ function checkRestJoinCommutativity(restr: Rel.Restriction): restJoinCommType {
   return false
 }
 
-/** Transformation Rule #6: Commuting σ with ⋈ (or ⨉) */
+/** Transformation Rule #6: Commuting σ with ⋈ (or ⨉)
+ *  No way to perform destructively; always returns new.
+ */
 function commuteRestrictionJoin(restr: Rel.Restriction,
                                 type: restJoinCommType) {
-  // no way to perform destructively; always returns new.
   if (!type)
     throw new Error("commuteRestrictionJoin on type = false")
   if (type === true)
@@ -361,7 +363,9 @@ function checkJoinishAssociativity(ish: Rel.Joinish): JoinishAssociativity {
   }
 }
 
-/** Transformation Rule #9: Associativity of ⋈, ×, ∪, and ∩ */
+/** Transformation Rule #9: Associativity of ⋈, ×, ∪, and ∩
+ *  No way to perform destructively; always returns new.
+ */
 function associateJoinish(ish: Rel.Joinish,
                           assoc: 'left' | 'right', // direction to rotate
                           returnNew = false) {
@@ -397,4 +401,11 @@ function associateJoinish(ish: Rel.Joinish,
     lhs: newLhs,
     rhs: newRhs
   })
+}
+
+/** Transformation Rule #10: Commuting σ with set operations.
+ *  No way to perform destructively; always returns new.
+ */
+function commuteRestrictionSetDown(restr: Rel.Restriction) {
+  
 }
