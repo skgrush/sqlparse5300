@@ -7,6 +7,7 @@ export type OperandType = string | Operation | Column
 export type Ordering = [Column | string, OrderingCondition]
 export type ColumnValueType = Catalog.Column | RelFunction | string
 export type Columnish = Column | RelFunction | string
+export type Joinish = Join | PairingOperation
 export type HighLevelRelationish = Relation | Join | Restriction | Projection |
                                    Rename | Operation | Aggregation
 
@@ -57,6 +58,12 @@ export class Operation extends HLR {
     this.lhs = lhs
     this.rhs = rhs
   }
+}
+
+export interface PairingOperation extends Operation {
+  op: PairingString
+  lhs: HighLevelRelationish
+  rhs: HighLevelRelationish
 }
 
 export class Column {

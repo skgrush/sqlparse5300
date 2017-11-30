@@ -1,5 +1,5 @@
 
-import {Rel, Catalog} from './types'
+import {Rel, Catalog, PairingString} from './types'
 import {involves} from './relAnalysis'
 
 /**
@@ -9,6 +9,10 @@ import {involves} from './relAnalysis'
 function arrayExtend<U, V>(a: U[], b: V[]): Array<U|V> {
   Array.prototype.push.apply(a, b)
   return a
+}
+
+function inArray<U, V>(thing: U, array: V[]) {
+  return (array as Array<U|V>).indexOf(thing) !== -1
 }
 
 function recursiveConditionSplit(cond: Rel.Conditional,
@@ -190,9 +194,9 @@ function commuteJoin(join: Rel.Join, returnNew = false) {
     })
 }
 
-type restJoinCommutativityReturn = 'lhs'|'rhs'|'split'|'split-swap'|boolean
+type restJoinCommType = 'lhs'|'rhs'|'split'|'split-swap'|boolean
 
-function checkRestJoinCommutativity(restr: Rel.Restriction) {
+function checkRestJoinCommutativity(restr: Rel.Restriction): restJoinCommType {
   if (!(restr.args instanceof Rel.Join))
     return false
 
@@ -256,7 +260,7 @@ function checkRestJoinCommutativity(restr: Rel.Restriction) {
 
 /** Transformation Rule #6: Commuting σ with ⋈ (or ⨉) */
 function commuteRestrictionJoin(restr: Rel.Restriction,
-                                type: restJoinCommutativityReturn) {
+                                type: restJoinCommType) {
   // no way to perform destructively; always returns new.
   if (!type)
     throw new Error("commuteRestrictionJoin on type = false")
@@ -291,4 +295,106 @@ function commuteRestrictionJoin(restr: Rel.Restriction,
   }
 
   return new Rel.Join(newLhs, newRhs, rJoin.condition)
+}
+
+/** Transformation Rule #7: Commuting π with ⋈ (or ⨉) */
+// TODO
+
+function checkSetCommutativity(op: Rel.Operation) {
+  return ((op.lhs instanceof Rel.HLR) &&
+          (op.rhs instanceof Rel.HLR) &&
+          inArray(op.op, ['union', 'intersect']))
+}
+
+/** Transformation Rule #8: Commutativity of set operations */
+function commuteSetOperation(op: Rel.PairingOperation, returnNew = false) {
+  const lhs = op.lhs
+  const rhs = op.rhs
+
+  if (returnNew)
+    return new Rel.Operation(op.op, rhs, lhs)
+
+  return Object.assign(op, {
+    lhs: rhs,
+    rhs: lhs
+  })
+}
+
+function _joinishType(ish: Rel.Joinish | any) {
+  if (ish instanceof Rel.Join) {
+    if (ish.condition instanceof Rel.Conditional)
+      return 'join'
+    else
+      return ish.condition
+  } else if (ish instanceof Rel.Operation &&
+             inArray(ish.op, ['union', 'intersect', 'except'])) {
+    return ish.op as PairingString
+  }
+  return null
+}
+
+type JoinishAssociativity = false | 'left' | 'right' | 'both'
+
+/**
+ * if 'right' then it can be associated 'right', i.e. clockwise; etc
+ */
+function checkJoinishAssociativity(ish: Rel.Joinish): JoinishAssociativity {
+  const type = _joinishType(ish)
+
+  if (type === 'join')
+    // TODO: support theta join associativity
+    return false
+  if (!type || !inArray(type, ['cross', 'union', 'intersect']))
+    return false
+
+  let yes = 0
+  if (_joinishType(ish.lhs) === type)
+    yes += 1
+  if (_joinishType(ish.rhs) === type)
+    yes += 2
+
+  switch (yes) {
+    case 1: return 'right'
+    case 2: return 'left'
+    case 3: return 'both'
+    default: return false
+  }
+}
+
+/** Transformation Rule #9: Associativity of ⋈, ×, ∪, and ∩ */
+function associateJoinish(ish: Rel.Joinish,
+                          assoc: 'left' | 'right', // direction to rotate
+                          returnNew = false) {
+
+  const type = _joinishType(ish)
+  // TODO: support theta associativity
+  if (type === 'join')
+    throw new Error("Association of theta joins not yet supported")
+  else if (inArray(type, ['left', 'right', 'except', null]))
+    throw new Error("Invalid join type for association")
+
+  const [newInnerLhs, newInnerRhs]
+    = (assoc === 'left')
+      ? [ish.lhs, (ish.rhs as Rel.Joinish).lhs]
+      : [(ish.lhs as Rel.Joinish).rhs, ish.rhs]
+
+  const newInner
+    = (ish instanceof Rel.Join)
+      ? new Rel.Join(newInnerLhs, newInnerRhs, ish.condition)
+      : new Rel.Operation(ish.op, newInnerLhs, newInnerRhs)
+
+  const [newLhs, newRhs] =
+    (assoc === 'left')
+      ? [newInner, (ish.rhs as Rel.Joinish).rhs]
+      : [(ish.lhs as Rel.Joinish).lhs, newInner]
+
+  if (returnNew)
+    return (ish instanceof Rel.Join)
+      ? new Rel.Join(newLhs, newRhs, ish.condition)
+      : new Rel.Operation(ish.op, newLhs, newRhs)
+
+  return Object.assign(ish, {
+    lhs: newLhs,
+    rhs: newRhs
+  })
 }
