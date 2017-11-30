@@ -1,6 +1,10 @@
 
 import {Rel, Catalog, PairingString} from './types'
 import {involves} from './relAnalysis'
+import dupe from './relDupe'
+
+const PairingStrings: ReadonlyArray<PairingString>
+  = ['union', 'intersect', 'except']
 
 /**
  * arrayExtend(a, b)
@@ -11,8 +15,8 @@ function arrayExtend<U, V>(a: U[], b: V[]): Array<U|V> {
   return a
 }
 
-function inArray<U, V>(thing: U, array: V[]) {
-  return (array as Array<U|V>).indexOf(thing) !== -1
+function inArray<U, V>(thing: U, array: ReadonlyArray<V>) {
+  return (array as ReadonlyArray<U|V>).indexOf(thing) !== -1
 }
 
 function recursiveConditionSplit(cond: Rel.Conditional,
@@ -53,7 +57,7 @@ function cascadeRestrictions(restr: Rel.Restriction, returnNew = false) {
   }
 
   if (returnNew)
-    return new Rel.Restriction(topCondition, newHLR)
+    return new Rel.Restriction(dupe(topCondition), dupe(newHLR))
 
   return Object.assign(restr, {
     conditions: topCondition,
@@ -78,7 +82,7 @@ function rollupRestrictions(restr: Rel.Restriction, returnNew = false) {
   }, restr.conditions)
 
   if (returnNew)
-    return new Rel.Restriction(newCondition, bottomHLR)
+    return new Rel.Restriction(dupe(newCondition), dupe(bottomHLR))
 
   return Object.assign(restr, {
     conditions: newCondition,
@@ -96,7 +100,7 @@ function commuteRestriction(restr: Rel.Restriction, returnNew = false) {
 
   if (returnNew) {
     const inner = new Rel.Restriction(restr.conditions, restr.args.args)
-    return new Rel.Restriction(restr.args.conditions, inner)
+    return dupe(new Rel.Restriction(restr.args.conditions, inner))
   }
 
   [restr.conditions, restr.args.conditions] =
@@ -114,7 +118,7 @@ function condenseProjection(proj: Rel.Projection, returnNew = false) {
   }
 
   if (returnNew)
-    return new Rel.Projection(proj.columns, bottomHLR)
+    return dupe(new Rel.Projection(proj.columns, bottomHLR))
 
   return Object.assign(proj, {
     args: bottomHLR
@@ -187,7 +191,7 @@ function checkJoinCommutativity(join: Rel.Join) {
 /** Transformation Rule #5: Commutativity of ⋈ (and ⨉) */
 function commuteJoin(join: Rel.Join, returnNew = false) {
   if (returnNew)
-    return new Rel.Join(join.rhs, join.lhs, join.condition)
+    return dupe(new Rel.Join(join.rhs, join.lhs, join.condition))
   else
     return Object.assign(join, {
       lhs: join.rhs,
@@ -314,7 +318,7 @@ function commuteSetOperation(op: Rel.PairingOperation, returnNew = false) {
   const rhs = op.rhs
 
   if (returnNew)
-    return new Rel.Operation(op.op, rhs, lhs)
+    return new Rel.Operation(op.op, dupe(rhs), dupe(lhs))
 
   return Object.assign(op, {
     lhs: rhs,
@@ -329,7 +333,7 @@ function _joinishType(ish: Rel.Joinish | any) {
     else
       return ish.condition
   } else if (ish instanceof Rel.Operation &&
-             inArray(ish.op, ['union', 'intersect', 'except'])) {
+             inArray(ish.op, PairingStrings)) {
     return ish.op as PairingString
   }
   return null
@@ -346,7 +350,7 @@ function checkJoinishAssociativity(ish: Rel.Joinish): JoinishAssociativity {
   if (type === 'join')
     // TODO: support theta join associativity
     return false
-  if (!type || !inArray(type, ['cross', 'union', 'intersect']))
+  if (!type || !inArray(type, PairingStrings))
     return false
 
   let yes = 0
@@ -366,9 +370,10 @@ function checkJoinishAssociativity(ish: Rel.Joinish): JoinishAssociativity {
 /** Transformation Rule #9: Associativity of ⋈, ×, ∪, and ∩
  *  No way to perform destructively; always returns new.
  */
-function associateJoinish(ish: Rel.Joinish,
-                          assoc: 'left' | 'right', // direction to rotate
-                          returnNew = false) {
+function associateJoinish<T extends Rel.Joinish>(
+    ish: T,
+    assoc: 'left' | 'right', // direction to rotate
+    returnNew = false) {
 
   const type = _joinishType(ish)
   // TODO: support theta associativity
@@ -385,7 +390,7 @@ function associateJoinish(ish: Rel.Joinish,
   const newInner
     = (ish instanceof Rel.Join)
       ? new Rel.Join(newInnerLhs, newInnerRhs, ish.condition)
-      : new Rel.Operation(ish.op, newInnerLhs, newInnerRhs)
+      : new Rel.Operation((ish as Rel.Operation).op, newInnerLhs, newInnerRhs)
 
   const [newLhs, newRhs] =
     (assoc === 'left')
@@ -394,8 +399,8 @@ function associateJoinish(ish: Rel.Joinish,
 
   if (returnNew)
     return (ish instanceof Rel.Join)
-      ? new Rel.Join(newLhs, newRhs, ish.condition)
-      : new Rel.Operation(ish.op, newLhs, newRhs)
+      ? dupe(new Rel.Join(newLhs, newRhs, ish.condition))
+      : dupe(new Rel.Operation((ish as Rel.Operation).op, newLhs, newRhs))
 
   return Object.assign(ish, {
     lhs: newLhs,
@@ -407,5 +412,16 @@ function associateJoinish(ish: Rel.Joinish,
  *  No way to perform destructively; always returns new.
  */
 function commuteRestrictionSetDown(restr: Rel.Restriction) {
-  
+  const setop = restr.args as Rel.PairingOperation
+  if (!(setop instanceof Rel.Operation && inArray(setop.op, PairingStrings)))
+    throw new Error("Bad commuteRestrictionSetDown() argument")
+
+  const condCopy = dupe(restr.conditions)
+  const {lhs, rhs} = setop
+
+  return new Rel.Operation(
+    setop.op,
+    new Rel.Restriction(restr.conditions, lhs),
+    new Rel.Restriction(condCopy, rhs)
+  )
 }
