@@ -1,0 +1,47 @@
+Once a query has been processed, it is ready for execution. But performance gains are possible by further analyzing
+the quey and restructuring it. This is an optimization process that works by looking at the structure and operations 
+of the query and modifying it based on specific rules and heuristics. All of these optimizations are based on
+specific transformations.
+
+Operations)
+
+1) cascading of restrictions: If a restriction is made that has multiple conditions anded together, 
+an individual restrict can be made and they can be nested within one another.
+
+2) commute restriction: If a restrictions operates directly on another restriction nested within it, then the order of
+the restrictions can be changed.
+
+3) cascade selection: In a sequence of selection operations, all but the last one can be ignored.
+
+4) commute restriction with selection: If a selection deals only with attributes pertaining to selection,
+the restriction and selection are commutative.
+
+5) commute cross product or join: The relations associated with either the cross product or join 
+can have their order changed.
+
+6) commute selection with join/cross product: A selection on the result of a join or cross product can move to just
+an individual relation if its conditions only apply to attributes from the relation.
+
+7) Commute restriction with join/cross product: A restriction that operates on the result of a join or cross product
+can be split into 2 restrictions operating on either argument. Either restrictions' columns will now pertain only
+to the relation it acts on.
+
+8) commute set operations: union and intersection are commutative.
+
+9) associativity of join, cross product, union and intersection: the mentioned operations are associative with themselves
+
+10) selection commutes with set operations: for any set operation, a selection operating on its result is the same as
+it operating on the arguments
+
+11) restriction commutes with union: a restriction on a union is the same as restricting the arguments of the union
+
+12) convert selection on a cross product to join: When using a selection on a cross product, you can convert it
+to a join with its condition matching the selection.
+
+13) selection in conjuction with set minus: If commuting a selection with set minus, the select only moves to the first,
+left hand argument.
+
+14) selection in conjuction with intersect: if a selection acting on an intersection has conditions pertaining
+only to 1 of the arguments, you can apply the selection to just that argument
+
+15) trivial transformations: a union with an empty relation can just be reduced to the other realtion operation.
