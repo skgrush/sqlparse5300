@@ -202,11 +202,13 @@ function commuteJoin(join: Rel.Join, returnNew = false) {
 type restJoinCommType = 'lhs'|'rhs'|'split'|'split-swap'|boolean
 
 function checkRestJoinCommutativity(restr: Rel.Restriction): restJoinCommType {
-  if (!(restr.args instanceof Rel.Join))
+  const args = restr.args as Rel.Join | Rel.PairingOperation
+  if (!(restr.args instanceof Rel.Join
+      || restr.args instanceof Rel.Operation))
     return false
 
   const condition = restr.conditions
-  const {lhs, rhs} = restr.args
+  const {lhs, rhs} = args
 
   // TODO: make more efficient
   const conditionInv = involves(condition)[1]
@@ -460,4 +462,46 @@ function combineRestrictionCross(restr: Rel.Restriction) {
   if (!isJoin) return false
 
   return new Rel.Join(join.lhs, join.rhs, condition)
+}
+
+/** Transformation Rule #13: Pushing σ in conjunction with set difference.
+ *  No way to perform destructively; always returns new without dupe.
+ */
+function pushRestrictionDifference(restr: Rel.Restriction, both = false) {
+  const condition = restr.conditions
+  const setdiff = restr.args as Rel.PairingOperation
+  if (!(setdiff instanceof Rel.Operation) || setdiff.op !== 'except')
+    throw new Error("Invalid pushRestrictionDifference() argument")
+
+  const lhs = new Rel.Restriction(condition, setdiff.lhs)
+  const rhs
+    = (both)
+      ? new Rel.Restriction(dupe(condition), setdiff.rhs)
+      : setdiff.rhs
+
+  return new Rel.Operation('except', lhs, rhs)
+}
+
+/** Transformation Rule #14: Pushing σ to only one argument in ∩.
+ *  No way to perform destructively; always returns new without dupe.
+ *  'to' should be from checkRestJoinCommutativity()
+ */
+function pushRestrictionIntersection(restr: Rel.Restriction,
+                                     to: 'lhs' | 'rhs') {
+  const condition = restr.conditions
+  const setinter = restr.args as Rel.PairingOperation
+  if (!(setinter instanceof Rel.Operation) || setinter.op !== 'intersect')
+    throw new Error("Invalid pushRestrictionIntersection() argument")
+
+  const lhs
+    = (to === 'rhs')
+      ? setinter.lhs
+      : new Rel.Restriction(condition, setinter.lhs)
+
+  const rhs
+    = (to === 'lhs')
+      ? setinter.rhs
+      : new Rel.Restriction(condition, setinter.rhs)
+
+  return new Rel.Operation('intersect', lhs, rhs)
 }
