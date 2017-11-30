@@ -1,5 +1,7 @@
 import * as React from 'react'
 
+const ReactDOMServer = require('react-dom/server')
+
 import {Rel, Sql, Catalog} from './types'
 
 export function getSymbol(input: string) {
@@ -383,7 +385,6 @@ export function htmlHLR(hlr: Rel.HighLevelRelationish) {
   throw new Error("Unknown type passed to htmlHLR")
 }
 
-
 export function svgRelAggregation(agg: Rel.Aggregation) {
   let attrs: JSX.Element | null = null
   if (agg.attributes && agg.attributes.length)
@@ -411,7 +412,6 @@ export function svgRelAggregation(agg: Rel.Aggregation) {
     return aggregJsx
 }
 
-
 export function svgRelRestriction(res: Rel.Restriction) {
   const SYM = getSymbol('restriction')
   const COND = svgRelConditional(res.conditions)
@@ -437,7 +437,7 @@ export function svgRelProjection(res: Rel.Projection) {
   )
 }
 
-export function svgColumnList(cols: Array<Rel.Columnish>
+export function svgColumnList(cols: Rel.Columnish[]
   ): Array<string|JSX.Element> {
   const columns: Array<string|JSX.Element> = []
   cols.forEach((col, idx) => {
@@ -677,3 +677,13 @@ export function svgHLR(hlr: Rel.HighLevelRelationish) {
   console.error("unknown HLR:", hlr)
   throw new Error("Unknown type passed to svgHLR")
 }
+
+export function getSVGString(hlr: Rel.HighLevelRelationish) {
+  const svg = (
+    <text className="svg-hlr">{svgHLR(hlr)}</text>
+  )
+
+  return ReactDOMServer.renderToStaticMarkup(svg)
+}
+
+(window as any).getSVGString = getSVGString
