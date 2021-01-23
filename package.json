@@ -1,6 +1,6 @@
 {
   "name": "sqlparse5300",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A/n SQL parser",
   "main": "index.js",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git://github.com/skgrush/sqlparse5300.git"
   },
   "contributors": [
-    "Samuel K. Grush",
+    "Samuel K. Grush <Samuel@Grush.org>",
     "Jared Rainwater"
   ],
   "license": "MIT",
