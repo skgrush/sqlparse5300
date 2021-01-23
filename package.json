@@ -1,6 +1,6 @@
 {
   "name": "sqlparse5300",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A/n SQL parser",
   "main": "index.js",
   "repository": {
