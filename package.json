@@ -32,7 +32,7 @@
     "ts-pegjs": "^0.1.12",
     "tslint": "^5.8.0",
     "typescript": "^2.5.3",
-    "webpack": "^3.8.1"
+    "webpack": "^5.94.0"
   },
   "scripts": {
     "build-sql-parser": "pegjs --plugin ./node_modules/ts-pegjs/src/tspegjs --extra-options-file src/parser/peg/pegconfig.json -o src/parser/peg/sql.ts src/parser/peg/sql.pegjs",
